@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>X Country Filter</h1>
+    <label class="switch" title="Enable / disable">
+      <input type="checkbox" id="enabled">
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <div class="section">
+    <div class="seg" id="mode">
+      <button data-mode="filter" title="Hide posts not from your countries">Filter</button>
+      <button data-mode="dim" title="Fade posts not from your countries">Dim</button>
+      <button data-mode="highlight" title="Show everything, badge matches">Highlight</button>
+    </div>
+    <label class="row" id="hideUnknownRow">
+      <input type="checkbox" id="hideUnknown">
+      <span>Also hide posts with unknown origin</span>
+    </label>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <span class="label">Countries</span>
+      <span class="mini-actions">
+        <button id="selAll">all</button> · <button id="selNone">none</button>
+      </span>
+    </div>
+    <div id="countries" class="grid"></div>
+  </div>
+
+  <details class="section">
+    <summary>Custom account rules</summary>
+    <textarea id="customRules" rows="4" spellcheck="false"
+      placeholder="@handle = CC   (one per line)&#10;@dhh = US&#10;@paraga = IN"></textarea>
+    <p class="hint">Map any account to a country code. These win over auto-detection.</p>
+  </details>
+
+  <footer id="status">&nbsp;</footer>
+
+  <script src="countries.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "X Country Filter",
+  "version": "1.0.0",
+  "description": "Filter or highlight X (Twitter) posts and replies by country — great for country-specific tech news.",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["countries.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "X Country Filter"
+  }
+}

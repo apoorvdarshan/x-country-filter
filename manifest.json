@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "X Country Filter",
   "version": "1.0.0",
-  "description": "Filter or highlight X (Twitter) posts and replies by country — great for country-specific tech news.",
+  "description": "Hide X (Twitter) posts from countries you pick.",
   "permissions": ["storage"],
   "content_scripts": [
     {

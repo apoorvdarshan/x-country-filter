@@ -1,20 +1,15 @@
 // X Country Filter — content script.
-// Scans timeline/reply articles, detects a country per post, then hides,
-// dims, or badges them according to the popup settings.
+// Detects a country per post and hides posts from the countries the user checked.
 
 (() => {
   "use strict";
 
   const DEFAULTS = {
     enabled: true,
-    mode: "filter", // "filter" | "dim" | "highlight"
-    selected: ["US", "IN", "JP"],
-    hideUnknown: false,
-    customRules: ""
+    hidden: [] // country codes to hide
   };
 
   let settings = { ...DEFAULTS };
-  let customHandleMap = {};
 
   // ---- detection ----------------------------------------------------------
 
@@ -41,15 +36,6 @@
     }
   }
 
-  function parseCustomRules(text) {
-    const map = {};
-    for (const line of (text || "").split("\n")) {
-      const m = line.match(/^\s*@?([A-Za-z0-9_]{1,15})\s*=\s*([A-Za-z]{2})\s*$/);
-      if (m && COUNTRY_DB[m[2].toUpperCase()]) map[m[1].toLowerCase()] = m[2].toUpperCase();
-    }
-    return map;
-  }
-
   function getTweetData(article) {
     let handle = null;
     const userName = article.querySelector('div[data-testid="User-Name"]');
@@ -68,7 +54,6 @@
   }
 
   function detectCountry({ handle, text, lang }) {
-    if (handle && customHandleMap[handle]) return customHandleMap[handle];
     if (handle) {
       for (const [cc, c] of Object.entries(COUNTRY_DB)) {
         if (c.handles.includes(handle)) return cc;
@@ -92,40 +77,14 @@
 
   // ---- rendering ----------------------------------------------------------
 
-  function removeBadge(article) {
-    const b = article.querySelector(":scope .xcf-badge");
-    if (b) b.remove();
-  }
-
-  function addBadge(article, cc) {
-    if (article.querySelector(":scope .xcf-badge")) return;
-    const c = COUNTRY_DB[cc];
-    const chip = document.createElement("span");
-    chip.className = "xcf-badge";
-    chip.textContent = `${c.flag} ${cc}`;
-    chip.title = c.name;
-    article.appendChild(chip);
-  }
-
   function applyToArticle(article) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
-    cell.classList.remove("xcf-hidden", "xcf-dim");
-    article.classList.remove("xcf-match", "xcf-rel");
-    removeBadge(article);
+    cell.classList.remove("xcf-hidden");
 
-    if (!settings.enabled) return;
+    if (!settings.enabled || settings.hidden.length === 0) return;
 
     const cc = detectCountry(getTweetData(article));
-    article.dataset.xcfCountry = cc || "unknown";
-
-    if (cc && settings.selected.includes(cc)) {
-      article.classList.add("xcf-match", "xcf-rel");
-      addBadge(article, cc);
-      return;
-    }
-    if (settings.mode === "highlight") return;
-    if (!cc && !settings.hideUnknown) return;
-    cell.classList.add(settings.mode === "filter" ? "xcf-hidden" : "xcf-dim");
+    if (cc && settings.hidden.includes(cc)) cell.classList.add("xcf-hidden");
   }
 
   function scan() {
@@ -143,17 +102,13 @@
 
   chrome.storage.sync.get(DEFAULTS, s => {
     settings = s;
-    customHandleMap = parseCustomRules(s.customRules);
     scan();
     new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true });
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "sync") return;
-    for (const [key, { newValue }] of Object.entries(changes)) {
-      settings[key] = newValue;
-      if (key === "customRules") customHandleMap = parseCustomRules(newValue);
-    }
+    for (const [key, { newValue }] of Object.entries(changes)) settings[key] = newValue;
     scan();
   });
 })();

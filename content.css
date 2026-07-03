@@ -1,39 +1,4 @@
-/* Filter mode: X's virtualized list remeasures cells, so hidden cells collapse. */
+/* X's virtualized list remeasures cells, so hidden cells collapse cleanly. */
 .xcf-hidden {
   display: none !important;
-}
-
-/* Dim mode: keep the timeline structure intact but fade non-matching posts. */
-.xcf-dim {
-  opacity: 0.18 !important;
-  filter: grayscale(1);
-  transition: opacity 0.15s ease;
-}
-.xcf-dim:hover {
-  opacity: 0.9 !important;
-  filter: none;
-}
-
-/* Matching posts get a subtle accent edge and a flag badge. */
-article.xcf-match {
-  box-shadow: inset 3px 0 0 0 #1d9bf0;
-}
-article.xcf-rel {
-  position: relative;
-}
-.xcf-badge {
-  position: absolute;
-  top: 8px;
-  right: 14px;
-  z-index: 5;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-  padding: 4px 7px;
-  border-radius: 999px;
-  background: rgba(29, 155, 240, 0.12);
-  color: #1d9bf0;
-  border: 1px solid rgba(29, 155, 240, 0.35);
-  pointer-events: none;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }

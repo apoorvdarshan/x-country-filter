@@ -1,9 +1,6 @@
 const DEFAULTS = {
   enabled: true,
-  mode: "filter",
-  selected: ["US", "IN", "JP"],
-  hideUnknown: false,
-  customRules: ""
+  hidden: []
 };
 
 const $ = id => document.getElementById(id);
@@ -26,11 +23,11 @@ function renderCountries() {
     const label = document.createElement("label");
     const cb = document.createElement("input");
     cb.type = "checkbox";
-    cb.checked = settings.selected.includes(cc);
+    cb.checked = settings.hidden.includes(cc);
     cb.addEventListener("change", () => {
-      const sel = new Set(settings.selected);
-      cb.checked ? sel.add(cc) : sel.delete(cc);
-      save({ selected: [...sel] });
+      const set = new Set(settings.hidden);
+      cb.checked ? set.add(cc) : set.delete(cc);
+      save({ hidden: [...set] });
     });
     const flag = document.createElement("span");
     flag.className = "flag";
@@ -43,43 +40,10 @@ function renderCountries() {
   }
 }
 
-function renderMode() {
-  document.querySelectorAll("#mode button").forEach(b =>
-    b.classList.toggle("active", b.dataset.mode === settings.mode)
-  );
-  $("hideUnknownRow").style.visibility = settings.mode === "highlight" ? "hidden" : "visible";
-}
-
 chrome.storage.sync.get(DEFAULTS, s => {
   settings = s;
   $("enabled").checked = s.enabled;
-  $("hideUnknown").checked = s.hideUnknown;
-  $("customRules").value = s.customRules;
   renderCountries();
-  renderMode();
 });
 
 $("enabled").addEventListener("change", e => save({ enabled: e.target.checked }));
-$("hideUnknown").addEventListener("change", e => save({ hideUnknown: e.target.checked }));
-
-document.querySelectorAll("#mode button").forEach(b =>
-  b.addEventListener("click", () => {
-    save({ mode: b.dataset.mode });
-    renderMode();
-  })
-);
-
-$("selAll").addEventListener("click", () => {
-  save({ selected: Object.keys(COUNTRY_DB) });
-  renderCountries();
-});
-$("selNone").addEventListener("click", () => {
-  save({ selected: [] });
-  renderCountries();
-});
-
-let rulesTimer = null;
-$("customRules").addEventListener("input", e => {
-  clearTimeout(rulesTimer);
-  rulesTimer = setTimeout(() => save({ customRules: e.target.value }), 400);
-});

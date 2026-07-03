@@ -13,34 +13,9 @@
     </label>
   </header>
 
-  <div class="section">
-    <div class="seg" id="mode">
-      <button data-mode="filter" title="Hide posts not from your countries">Filter</button>
-      <button data-mode="dim" title="Fade posts not from your countries">Dim</button>
-      <button data-mode="highlight" title="Show everything, badge matches">Highlight</button>
-    </div>
-    <label class="row" id="hideUnknownRow">
-      <input type="checkbox" id="hideUnknown">
-      <span>Also hide posts with unknown origin</span>
-    </label>
-  </div>
+  <p class="hint">Checked countries are <b>hidden</b> from your timeline.</p>
 
-  <div class="section">
-    <div class="section-head">
-      <span class="label">Countries</span>
-      <span class="mini-actions">
-        <button id="selAll">all</button> · <button id="selNone">none</button>
-      </span>
-    </div>
-    <div id="countries" class="grid"></div>
-  </div>
-
-  <details class="section">
-    <summary>Custom account rules</summary>
-    <textarea id="customRules" rows="4" spellcheck="false"
-      placeholder="@handle = CC   (one per line)&#10;@dhh = US&#10;@paraga = IN"></textarea>
-    <p class="hint">Map any account to a country code. These win over auto-detection.</p>
-  </details>
+  <div id="countries" class="grid"></div>
 
   <footer id="status">&nbsp;</footer>
 

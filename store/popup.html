@@ -6,18 +6,25 @@
 </head>
 <body>
   <header>
-    <h1>X Country Filter</h1>
+    <img class="logo" src="icons/icon48.png" width="28" height="28" alt="">
+    <div class="titles">
+      <h1>Country Filter</h1>
+      <span class="sub">for X (Twitter)</span>
+    </div>
     <label class="switch" title="Enable / disable">
       <input type="checkbox" id="enabled">
       <span class="slider"></span>
     </label>
   </header>
 
-  <p class="hint">Checked countries are <b>hidden</b> from your timeline.</p>
+  <p id="summary" class="summary">&nbsp;</p>
 
   <div id="countries" class="grid"></div>
 
-  <footer id="status">&nbsp;</footer>
+  <footer>
+    <span id="status" class="status">Saved<span class="tick"></span></span>
+    <button id="clear" class="clear" hidden>Uncheck all</button>
+  </footer>
 
   <script src="countries.js"></script>
   <script src="popup.js"></script>

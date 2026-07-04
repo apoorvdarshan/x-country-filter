@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>X Country Filter</h1>
+    <label class="switch" title="Enable / disable">
+      <input type="checkbox" id="enabled">
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <p class="hint">Checked countries are <b>hidden</b> from your timeline.</p>
+
+  <div id="countries" class="grid"></div>
+
+  <footer id="status">&nbsp;</footer>
+
+  <script src="countries.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+/* X's virtualized list remeasures cells, so hidden cells collapse cleanly. */
+.xcf-hidden {
+  display: none !important;
+}

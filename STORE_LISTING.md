@@ -63,7 +63,7 @@ FEATURES
 ### Category
 
 ```
-Social media & communication
+Social networking
 ```
 
 ### Language

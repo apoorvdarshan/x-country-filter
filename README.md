@@ -63,3 +63,7 @@ imperfect detection only means an occasional post slips through.
   ("the internet", "Mars"), or unlisted cities resolve to nothing and fall back
   to the weaker heuristics
 - Detection is best-effort; X exposes no verified location for accounts
+
+## License
+
+[MIT](LICENSE)

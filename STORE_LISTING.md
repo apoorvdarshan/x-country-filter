@@ -77,12 +77,12 @@ English
 
 ### Graphic assets
 
-| Asset | Spec | Notes |
+| Asset | File | Notes |
 |---|---|---|
-| Store icon | 128×128 PNG, artwork 96×96 with 16px transparent padding | padded variant of `icons/icon128.png` |
-| Screenshot 1 (hero) | 1280×800 PNG | branded card: logo + tagline + popup |
-| Screenshot 2 (timeline) | 1280×800 PNG | popup open over a real x.com feed |
-| Small promo tile (optional) | 440×280 PNG | improves discovery placement |
+| Store icon | `store-assets/store-icon-128.png` | 128×128, artwork 96×96 + 16px transparent padding |
+| Screenshot 1 (hero, upload first) | `store-assets/screenshot-2-hero-1280x800.png` | branded card: logo + tagline + popup |
+| Screenshot 2 (timeline) | `store-assets/screenshot-1-timeline-1280x800.png` | popup open over a real x.com feed |
+| Small promo tile (optional) | — not made yet | 440×280 PNG, improves discovery placement |
 
 ### Additional fields (optional but fill them)
 

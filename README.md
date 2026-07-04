@@ -1,8 +1,5 @@
 # X Country Filter
 
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors)](https://github.com/sponsors/apoorvdarshan)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b?logo=kofi&logoColor=white)](https://ko-fi.com/apoorvdarshan)
-
 Chrome extension (Manifest V3) that hides posts from countries you pick on **x.com**.
 Check a country in the popup → its posts disappear from your timeline, search, and
 reply threads. Everything else stays untouched.

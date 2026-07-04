@@ -23,6 +23,26 @@ zip -qr ../dist/country-filter-for-x-1.0.0.zip \
 For updates: bump `version` in `store/manifest.json` first (the store rejects
 re-uploads of an existing version number), rename the zip to match.
 
+Fields on the Package tab that need no action:
+
+| Field | Meaning |
+|---|---|
+| Version / Item type / Permissions | derived automatically from the uploaded zip |
+| CRX file / Public key | Google signs and packages the zip itself; nothing to provide |
+| Verified CRX uploads (Opt in) | optional supply-chain feature — skip; it requires signing every future upload with your own key |
+
+---
+
+## Access → Test instructions (optional, speeds up review)
+
+```
+1. Load the extension and open https://x.com (a logged-in account shows more posts, but public pages work too).
+2. Click the extension icon in the toolbar.
+3. Check any country (e.g. India) — posts detected as being from it disappear from the feed immediately.
+4. Uncheck it — the posts reappear. The header toggle disables the whole filter.
+5. Detection is heuristic (known accounts, country/city keywords in post text, post language); posts that can't be identified are always shown.
+```
+
 ---
 
 ## Store listing tab

@@ -124,6 +124,19 @@
   let batchEndpointDead = false;
   let gqlExtraFeatures = {};
   let persistTimer = null;
+  let observer = null;
+  let pumpTimer = null;
+
+  // When the extension is reloaded/updated, this copy of the script is
+  // orphaned: chrome.* APIs vanish but its timers keep firing. Detect that
+  // and shut down quietly (the reloaded tab gets a fresh copy).
+  function orphaned() {
+    if (chrome.runtime && chrome.runtime.id) return false;
+    clearInterval(pumpTimer);
+    clearTimeout(persistTimer);
+    if (observer) observer.disconnect();
+    return true;
+  }
 
   function getCsrf() {
     const m = document.cookie.match(/(?:^|;\s*)ct0=([^;]+)/);
@@ -147,12 +160,13 @@
   function persistCache() {
     clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
+      if (orphaned()) return;
       const entries = Object.entries(locCache);
       if (entries.length > CACHE_MAX) {
         entries.sort((a, b) => b[1].ts - a[1].ts);
         locCache = Object.fromEntries(entries.slice(0, CACHE_MAX));
       }
-      chrome.storage.local.set({ [CACHE_KEY]: locCache });
+      try { chrome.storage.local.set({ [CACHE_KEY]: locCache }); } catch { /* context died mid-write */ }
     }, 2000);
   }
 
@@ -218,6 +232,7 @@
   }
 
   async function pumpQueue() {
+    if (orphaned()) return;
     if (pumping || !queue.length || Date.now() < cooldownUntil) return;
     if (!settings.enabled || settings.hidden.length === 0) return;
     const csrf = getCsrf();
@@ -286,8 +301,9 @@
     chrome.storage.sync.get(DEFAULTS, s => {
       settings = s;
       scan();
-      new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true });
-      setInterval(pumpQueue, PUMP_INTERVAL);
+      observer = new MutationObserver(scheduleScan);
+      observer.observe(document.body, { childList: true, subtree: true });
+      pumpTimer = setInterval(pumpQueue, PUMP_INTERVAL);
     });
   });
 

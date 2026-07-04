@@ -84,12 +84,22 @@ English
 | Screenshot 2 (timeline) | `store-assets/screenshot-1-timeline-1280x800.png` | popup open over a real x.com feed |
 | Small promo tile (optional) | — not made yet | 440×280 PNG, improves discovery placement |
 
-### Additional fields (optional but fill them)
+### Global assets
 
 | Field | Value |
 |---|---|
-| Official URL / Homepage | `https://github.com/apoorvdarshan/x-country-filter` |
+| Global promo video (YouTube URL) | leave empty |
+| Marquee promo tile (1400×560) | leave empty (optional; only used if featured) |
+
+### Additional fields
+
+| Field | Value |
+|---|---|
+| Official URL | `None` — requires verifying site ownership in Google Search Console; GitHub repos can't be verified. Homepage URL below covers it. |
+| Homepage URL | `https://github.com/apoorvdarshan/x-country-filter` |
 | Support URL | `https://github.com/apoorvdarshan/x-country-filter/issues` |
+| Mature content | leave **unchecked** — no sexual content, strong language, violence, or drugs/alcohol focus |
+| Item support visibility | either is fine; ON shows a support tab pointing at the URLs above |
 
 ---
 
@@ -144,9 +154,9 @@ https://github.com/apoorvdarshan/x-country-filter/blob/master/PRIVACY.md
 
 | Field | Value |
 |---|---|
-| Payments | Free |
-| Visibility | Public |
-| Regions | All regions |
+| Payments | **Free of charge** (no in-app purchases) |
+| Visibility | **Public** |
+| Distribution | **All regions** |
 
 ---
 

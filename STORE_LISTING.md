@@ -113,10 +113,24 @@ Saves the user's settings: the on/off state and the list of countries they chose
 The extension needs to run on x.com and twitter.com to read the author handle, text, and language of posts already displayed on the page and hide the ones matching the user's blocked countries. It does not run anywhere else.
 ```
 
+### Are you using remote code?
+
+Select **"No, I am not using Remote code"** — all JS ships inside the package;
+there are no external `<script>` tags, remote modules, or `eval` of fetched code.
+Leave the justification box empty.
+
 ### Data usage
 
-- [x] **Does NOT collect or use any user data** — check this; collect nothing else.
-- Certify all three compliance statements (no sale of data, no unrelated use, no creditworthiness use).
+"What user data do you plan to collect" — leave **all nine checkboxes
+unchecked** (PII, health, financial, authentication, personal communications,
+location, web history, user activity, website content). The extension collects
+none of them; post text is read in-page and never stored or transmitted.
+
+Certify all three disclosures:
+
+- [x] I do not sell or transfer user data to third parties, outside of the approved use cases
+- [x] I do not use or transfer user data for purposes that are unrelated to my item's single purpose
+- [x] I do not use or transfer user data to determine creditworthiness or for lending purposes
 
 ### Privacy policy URL
 

@@ -63,11 +63,11 @@ FEATURES
 ### Category
 
 ```
-Social Media & Networking
+Social Networking
 ```
 
-(Exact label per Google's current extension taxonomy — pick the one social
-option the dropdown offers. Alternative if it ever fits better: `Tools`.)
+(Dashboard label, under the LIFESTYLE group. Google's docs call it
+"Social Media & Networking" but the actual dropdown says "Social Networking".)
 
 ### Language
 

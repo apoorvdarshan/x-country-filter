@@ -63,8 +63,11 @@ FEATURES
 ### Category
 
 ```
-Social networking
+Social Media & Networking
 ```
+
+(Exact label per Google's current extension taxonomy — pick the one social
+option the dropdown offers. Alternative if it ever fits better: `Tools`.)
 
 ### Language
 

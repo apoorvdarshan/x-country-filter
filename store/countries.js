@@ -4,10 +4,9 @@
 //   name     - display name
 //   flag     - emoji shown in the popup
 //   langs    - BCP-47 lang codes X stamps on tweet text (div[data-testid="tweetText"][lang])
-//   places   - strings matched against the author's profile "location" field
-//              (country names incl. native script, major cities, regions).
-//              This is the strongest signal — the location is fetched from
-//              the profile via your own session and cached.
+//   places   - location strings (country names incl. native script, major
+//              cities, regions); unused in this build, kept in sync with the
+//              full GitHub version
 //   keywords - words/phrases in the tweet text that imply the country (fallback)
 //   handles  - well-known tech-news accounts from that country (lowercase, no @)
 //

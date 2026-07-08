@@ -5,6 +5,8 @@ Every field below maps to a dashboard field, in the order the dashboard shows th
 
 Item ID: `cocohplmilpblbkoikolbhakjipccioa`
 
+Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa
+
 ---
 
 ## Build → Package

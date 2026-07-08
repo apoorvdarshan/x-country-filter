@@ -1,10 +1,22 @@
 # X Country Filter
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-1d9bf0?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)
+
 Chrome extension (Manifest V3) that hides posts from countries you pick on **x.com**.
 Check a country in the popup → its posts disappear from your timeline, search, and
 reply threads. Everything else stays untouched.
 
-## Install (developer mode)
+## Install
+
+**[Install from the Chrome Web Store →](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)**
+— the one-click option.
+
+> The Chrome Web Store build detects countries from what's already on the page
+> (known accounts, keywords, post language). The developer-mode version below
+> adds a stronger signal: the author's profile location, looked up from X's own
+> API in your logged-in session. See [How detection works](#how-detection-works).
+
+### Install (developer mode)
 
 1. Open `chrome://extensions`
 2. Turn on **Developer mode** (top right)

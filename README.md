@@ -1,6 +1,7 @@
 # X Country Filter
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-1d9bf0?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)
+[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-Upvote-DA552F?logo=producthunt&logoColor=white)](https://www.producthunt.com/products/country-filter-for-x-twitter/)
 
 Chrome extension (Manifest V3) that hides posts from countries you pick on **x.com**.
 Check a country in the popup → its posts disappear from your timeline, search, and

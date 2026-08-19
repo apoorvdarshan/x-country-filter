@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.0.0.zip`
+Upload: `dist/country-filter-for-x-1.0.1.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
-cd store && rm -f ../dist/country-filter-for-x-1.0.0.zip && \
-zip -qr ../dist/country-filter-for-x-1.0.0.zip \
+cd store && rm -f ../dist/country-filter-for-x-1.0.1.zip && \
+zip -qr ../dist/country-filter-for-x-1.0.1.zip \
   manifest.json content.js content.css countries.js \
   popup.html popup.js popup.css icons -x '.*'
 ```
@@ -38,7 +38,7 @@ Fields on the Package tab that need no action:
 ## Access → Test instructions (optional, speeds up review)
 
 ```
-1. Load the extension and open https://x.com (a logged-in account shows more posts, but public pages work too).
+1. Load the extension and open https://x.com or https://pro.x.com (a logged-in account shows more posts, but public pages work too).
 2. Click the extension icon in the toolbar.
 3. Check any country (e.g. India) — posts detected as being from it disappear from the feed immediately.
 4. Uncheck it — the posts reappear. The header toggle disables the whole filter.
@@ -72,7 +72,7 @@ HOW IT WORKS
 The extension looks at what's already on the page — well-known accounts, country and city names in the post text, and the post's language — and hides posts that match a country you've blocked. Posts that can't be identified are always shown, so you never lose content by mistake.
 
 PRIVACY
-No data is collected. No analytics, no tracking, no external servers. Your settings stay in your browser (synced with your Chrome profile), and the extension only runs on x.com and twitter.com.
+No data is collected. No analytics, no tracking, no external servers. Your settings stay in your browser (synced with your Chrome profile), and the extension only runs on x.com, pro.x.com, and twitter.com.
 
 FEATURES
 • 19 countries to choose from, one-click on/off
@@ -130,7 +130,7 @@ English
 ### Single purpose
 
 ```
-Hides posts on x.com from countries the user selects.
+Hides posts on x.com, including X Pro at pro.x.com, from countries the user selects.
 ```
 
 ### Permission justification — `storage`
@@ -139,10 +139,10 @@ Hides posts on x.com from countries the user selects.
 Saves the user's settings: the on/off state and the list of countries they chose to hide. Synced via chrome.storage.sync so settings follow their Chrome profile.
 ```
 
-### Permission justification — host permission (x.com, twitter.com content scripts)
+### Permission justification — host permission (x.com, pro.x.com, twitter.com content scripts)
 
 ```
-The extension needs to run on x.com and twitter.com to read the author handle, text, and language of posts already displayed on the page and hide the ones matching the user's blocked countries. It does not run anywhere else.
+The extension needs to run on x.com, pro.x.com, and twitter.com to read the author handle, text, and language of posts already displayed on the page and hide the ones matching the user's blocked countries. It does not run anywhere else.
 ```
 
 ### Are you using remote code?

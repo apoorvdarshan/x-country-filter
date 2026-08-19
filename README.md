@@ -3,7 +3,8 @@
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-1d9bf0?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)
 [![Product Hunt](https://img.shields.io/badge/Product%20Hunt-Upvote-DA552F?logo=producthunt&logoColor=white)](https://www.producthunt.com/products/country-filter-for-x-twitter/)
 
-Chrome extension (Manifest V3) that hides posts from countries you pick on **x.com**.
+Chrome extension (Manifest V3) that hides posts from countries you pick on
+**x.com**, including **X Pro** at **pro.x.com**.
 Check a country in the popup → its posts disappear from your timeline, search, and
 reply threads. Everything else stays untouched.
 
@@ -22,7 +23,7 @@ reply threads. Everything else stays untouched.
 1. Open `chrome://extensions`
 2. Turn on **Developer mode** (top right)
 3. Click **Load unpacked** and select this folder (`x-country-filter`)
-4. Open x.com (logged in), click the extension icon, check the countries you want gone
+4. Open x.com or pro.x.com (logged in), click the extension icon, check the countries you want gone
 
 ## How detection works
 

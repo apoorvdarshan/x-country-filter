@@ -1,9 +1,9 @@
 # Privacy Policy — Country Filter for X
 
-**Last updated: July 4, 2026**
+**Last updated: August 19, 2026**
 
 Country Filter for X ("the extension") is a browser extension that hides posts
-on x.com from countries the user selects.
+on x.com, including X Pro at pro.x.com, from countries the user selects.
 
 ## Data collection
 
@@ -17,7 +17,7 @@ any third party.**
   already displayed on the page (author handle, post text, post language).
 - The extension has no analytics, no tracking, no ads, and makes no network
   requests to any developer-controlled server. It cannot read your browsing
-  history and only runs on x.com / twitter.com.
+  history and only runs on x.com, pro.x.com, and twitter.com.
 
 ## The open-source developer version
 

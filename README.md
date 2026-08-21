@@ -27,20 +27,23 @@ reply threads. Everything else stays untouched.
 
 ## How detection works
 
-Checked in order, first hit wins:
+The extension combines independent signals into a confidence score:
 
-1. **Author's profile location** (strongest) — the extension calls X's internal API
+1. **Author's profile location** (strongest) — the developer build calls X's internal API
    *as you* (same-origin fetch from x.com, so your session cookies are sent
    automatically) and reads each author's profile "location" field, then maps the
    free text to a country ("Bengaluru, India" → IN, "San Francisco, CA" → US,
    "東京" → JP). Results are cached for 7 days in `chrome.storage.local`.
 2. **Known accounts** — lists of well-known tech-news handles per country in `countries.js`
-3. **Keywords** — country/city/company names in the tweet text (word-boundary matched)
-4. **Tweet language** — used only when the language maps to exactly one country
-   (ja → Japan, ko → South Korea...). English is never used as a signal.
+3. **Keywords** — country/city/company names in the post text (word-boundary matched)
+4. **Post language** — scored only when the language maps to exactly one country
+   in the database (ja → Japan, ko → South Korea...). English is never scored.
 
-Posts that can't be identified are always shown. Since this is a blocklist,
-imperfect detection only means an occasional post slips through.
+A single keyword or language never hides a post by itself. Weak evidence stays
+visible, and competing countries are treated as ambiguous. Known-author or
+profile-location evidence can outweigh weaker topic text. The final country,
+confidence, and reasons are retained locally for debugging without being added
+to the page markup.
 
 ## About the API access ("cookies")
 
@@ -69,14 +72,24 @@ imperfect detection only means an occasional post slips through.
 
 - Add/edit countries: `countries.js` — `places` (profile-location matching),
   `keywords` (tweet text), `handles` (known accounts), `langs`
+- Adjust scoring and ambiguity rules: `detection.js`
 - After editing files, hit the reload icon on `chrome://extensions` and refresh x.com
+
+## Development
+
+The extension has no build-time dependencies. Run the detection regression suite with:
+
+```sh
+node tests/detection.test.js
+```
 
 ## Limitations
 
 - Profile location is free text users set themselves — empty, joke locations
   ("the internet", "Mars"), or unlisted cities resolve to nothing and fall back
   to the weaker heuristics
-- Detection is best-effort; X exposes no verified location for accounts
+- Detection is deliberately conservative; uncertain posts remain visible
+- Detection is best-effort because X exposes no verified location for accounts
 
 ## License
 

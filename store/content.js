@@ -1,114 +1,101 @@
-// X Country Filter — content script.
-// Detects a country per post and hides posts from the countries the user checked.
+// X Country Filter — store-safe content script.
+// Scores local country evidence and hides only high-confidence matches.
 
 (() => {
   "use strict";
 
-  const DEFAULTS = {
-    enabled: true,
-    hidden: [] // country codes to hide
-  };
+  const DEFAULTS = { enabled: true, hidden: [] };
+  const { detectCountry, getTweetData, normalizeSettings } = XCF_DETECTION;
 
-  let settings = { ...DEFAULTS };
+  let settings = normalizeSettings(DEFAULTS);
+  let observer = null;
+  let articleTimer = null;
+  const pendingArticles = new Set();
+  const detectionState = new WeakMap();
 
-  // ---- detection ----------------------------------------------------------
+  globalThis.XCF_DEBUG = Object.freeze({
+    get: cell => detectionState.get(cell) || null
+  });
 
-  // One word-boundary regex per keyword. \b breaks on accented chars, so use
-  // non-word-char boundaries instead.
-  const KEYWORD_RES = {};
-  for (const [cc, c] of Object.entries(COUNTRY_DB)) {
-    KEYWORD_RES[cc] = c.keywords.map(k => {
-      const esc = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, "iu");
-    });
+  function orphaned() {
+    try {
+      if (chrome.runtime && chrome.runtime.id) return false;
+    } catch { /* extension context was invalidated */ }
+    clearTimeout(articleTimer);
+    if (observer) observer.disconnect();
+    document.querySelectorAll(".xcf-hidden").forEach(cell => clearDetectionData(cell));
+    return true;
   }
 
-  // Languages that map to exactly one country in the DB (excluding English,
-  // which is too widespread to be a signal on its own).
-  const LANG_OWNER = {};
-  {
-    const owners = {};
-    for (const [cc, c] of Object.entries(COUNTRY_DB)) {
-      for (const lang of c.langs) (owners[lang] = owners[lang] || []).push(cc);
-    }
-    for (const [lang, ccs] of Object.entries(owners)) {
-      if (lang !== "en" && ccs.length === 1) LANG_OWNER[lang] = ccs[0];
-    }
+  function clearDetectionData(cell) {
+    cell.classList.remove("xcf-hidden");
+    detectionState.delete(cell);
   }
-
-  function getTweetData(article) {
-    let handle = null;
-    const userName = article.querySelector('div[data-testid="User-Name"]');
-    if (userName) {
-      for (const a of userName.querySelectorAll('a[href^="/"]')) {
-        const href = a.getAttribute("href");
-        if (/^\/[A-Za-z0-9_]{1,15}$/.test(href)) { handle = href.slice(1).toLowerCase(); break; }
-      }
-    }
-    const textEl = article.querySelector('div[data-testid="tweetText"]');
-    return {
-      handle,
-      text: textEl ? textEl.textContent : "",
-      lang: textEl ? textEl.getAttribute("lang") : null
-    };
-  }
-
-  function detectCountry({ handle, text, lang }) {
-    if (handle) {
-      for (const [cc, c] of Object.entries(COUNTRY_DB)) {
-        if (c.handles.includes(handle)) return cc;
-      }
-    }
-    if (text) {
-      let best = null, bestScore = 0;
-      for (const cc of Object.keys(COUNTRY_DB)) {
-        let score = 0;
-        for (const re of KEYWORD_RES[cc]) if (re.test(text)) score++;
-        if (score > bestScore) { bestScore = score; best = cc; }
-      }
-      if (best) return best;
-    }
-    if (lang) {
-      const base = lang.split("-")[0].toLowerCase();
-      if (LANG_OWNER[base]) return LANG_OWNER[base];
-    }
-    return null;
-  }
-
-  // ---- rendering ----------------------------------------------------------
 
   function applyToArticle(article) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
-    cell.classList.remove("xcf-hidden");
-
+    clearDetectionData(cell);
     if (!settings.enabled || settings.hidden.length === 0) return;
 
-    const cc = detectCountry(getTweetData(article));
-    if (cc && settings.hidden.includes(cc)) cell.classList.add("xcf-hidden");
+    const detection = detectCountry(getTweetData(article));
+    detectionState.set(cell, detection);
+    if (detection.country && settings.hidden.includes(detection.country)) {
+      cell.classList.add("xcf-hidden");
+    }
   }
 
-  function scan() {
+  function scanAll() {
     document.querySelectorAll('article[data-testid="tweet"]').forEach(applyToArticle);
   }
 
-  // ---- wiring -------------------------------------------------------------
-
-  let scheduled = false;
-  function scheduleScan() {
-    if (scheduled) return;
-    scheduled = true;
-    setTimeout(() => { scheduled = false; scan(); }, 250);
+  function scheduleArticle(article) {
+    pendingArticles.add(article);
+    if (articleTimer) return;
+    articleTimer = setTimeout(() => {
+      articleTimer = null;
+      const articles = [...pendingArticles];
+      pendingArticles.clear();
+      for (const item of articles) {
+        if (item.isConnected) applyToArticle(item);
+      }
+    }, 100);
   }
 
-  chrome.storage.sync.get(DEFAULTS, s => {
-    settings = s;
-    scan();
-    new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true });
+  function observeAddedPosts(mutations) {
+    if (orphaned()) return;
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        const element = node.nodeType === 1 ? node : node.parentElement;
+        if (!element) continue;
+        const containingArticle = element.closest('article[data-testid="tweet"]');
+        if (containingArticle) scheduleArticle(containingArticle);
+        if (element.matches('article[data-testid="tweet"]')) scheduleArticle(element);
+        element.querySelectorAll('article[data-testid="tweet"]').forEach(scheduleArticle);
+      }
+    }
+  }
+
+  chrome.storage.sync.get(DEFAULTS, value => {
+    settings = normalizeSettings(value);
+    scanAll();
+    observer = new MutationObserver(observeAddedPosts);
+    observer.observe(document.body, { childList: true, subtree: true });
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "sync") return;
-    for (const [key, { newValue }] of Object.entries(changes)) settings[key] = newValue;
-    scan();
+    const next = { ...settings };
+    let relevant = false;
+    for (const key of Object.keys(DEFAULTS)) {
+      if (changes[key]) {
+        relevant = true;
+        next[key] = changes[key].newValue === undefined
+          ? DEFAULTS[key]
+          : changes[key].newValue;
+      }
+    }
+    if (!relevant) return;
+    settings = normalizeSettings(next);
+    scanAll();
   });
 })();

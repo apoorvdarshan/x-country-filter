@@ -7,11 +7,11 @@
 //   places   - location strings (country names incl. native script, major
 //              cities, regions); unused in this build, kept in sync with the
 //              full GitHub version
-//   keywords - words/phrases in the tweet text that imply the country (fallback)
+//   keywords - words/phrases in the tweet text that contribute weak evidence
 //   handles  - well-known tech-news accounts from that country (lowercase, no @)
 //
 // Note: shared languages (en, es, ar...) are weak signals on their own; the
-// content script only uses a language when it maps to exactly one country here.
+// content script only scores a language when it maps to exactly one country here.
 
 const COUNTRY_DB = {
   US: {

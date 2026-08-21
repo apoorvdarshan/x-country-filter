@@ -11,14 +11,14 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.0.1.zip`
+Upload: `dist/country-filter-for-x-1.1.0.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
-cd store && rm -f ../dist/country-filter-for-x-1.0.1.zip && \
-zip -qr ../dist/country-filter-for-x-1.0.1.zip \
-  manifest.json content.js content.css countries.js \
+mkdir -p dist
+cd store && zip -qr ../dist/country-filter-for-x-1.1.0.zip \
+  manifest.json detection.js content.js content.css countries.js \
   popup.html popup.js popup.css icons -x '.*'
 ```
 
@@ -42,7 +42,7 @@ Fields on the Package tab that need no action:
 2. Click the extension icon in the toolbar.
 3. Check any country (e.g. India) — posts detected as being from it disappear from the feed immediately.
 4. Uncheck it — the posts reappear. The header toggle disables the whole filter.
-5. Detection is heuristic (known accounts, country/city keywords in post text, post language); posts that can't be identified are always shown.
+5. Detection combines known accounts, country/city keywords, and post language. Weak or conflicting evidence stays visible.
 ```
 
 ---
@@ -69,14 +69,15 @@ Hide posts from countries you pick — a simple blocklist for your X timeline.
 Check a country in the popup and posts from it disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Everything else stays untouched.
 
 HOW IT WORKS
-The extension looks at what's already on the page — well-known accounts, country and city names in the post text, and the post's language — and hides posts that match a country you've blocked. Posts that can't be identified are always shown, so you never lose content by mistake.
+The extension combines signals already on the page — well-known accounts, country and city names in the post text, and the post's language — into a confidence score. A single keyword or language is not enough to hide a post, and weak or conflicting evidence stays visible.
 
 PRIVACY
 No data is collected. No analytics, no tracking, no external servers. Your settings stay in your browser (synced with your Chrome profile), and the extension only runs on x.com, pro.x.com, and twitter.com.
 
 FEATURES
-• 19 countries to choose from, one-click on/off
-• Works on timeline, search, and reply threads
+• 20 countries to choose from, one-click on/off
+• Works on X and X Pro timelines, search, and reply threads
+• Confidence scoring reduces false positives
 • Live count of how many countries you're hiding
 • "Uncheck all" to reset instantly
 • Open source: github.com/apoorvdarshan/x-country-filter

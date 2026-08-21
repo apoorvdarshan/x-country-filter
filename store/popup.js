@@ -4,12 +4,16 @@ const DEFAULTS = {
 };
 
 const $ = id => document.getElementById(id);
-let settings = { ...DEFAULTS };
+const { normalizeSettings } = XCF_DETECTION;
+let settings = normalizeSettings(DEFAULTS);
 let statusTimer = null;
 
 function save(patch) {
-  Object.assign(settings, patch);
-  chrome.storage.sync.set(patch, () => {
+  settings = normalizeSettings({ ...settings, ...patch });
+  const normalizedPatch = Object.fromEntries(
+    Object.keys(patch).map(key => [key, settings[key]])
+  );
+  chrome.storage.sync.set(normalizedPatch, () => {
     $("status").classList.add("show");
     clearTimeout(statusTimer);
     statusTimer = setTimeout(() => $("status").classList.remove("show"), 1200);
@@ -65,8 +69,8 @@ function renderCountries() {
 }
 
 chrome.storage.sync.get(DEFAULTS, s => {
-  settings = s;
-  $("enabled").checked = s.enabled;
+  settings = normalizeSettings(s);
+  $("enabled").checked = settings.enabled;
   renderCountries();
   refresh();
 });

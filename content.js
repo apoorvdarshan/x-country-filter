@@ -1,105 +1,19 @@
 // X Country Filter — content script.
-// Detects a country per post and hides posts from the countries the user checked.
-//
-// Primary signal: the author's profile "location" field, fetched from X's
-// internal API using your own logged-in session (same-origin fetch, so your
-// cookies are sent automatically; nothing leaves the browser). Results are
-// cached for 7 days. Fallbacks: known-handle lists, tweet-text keywords,
-// tweet language.
+// Scores country evidence per post and hides only high-confidence matches.
+// The developer build also uses the author's public profile location.
 
 (() => {
   "use strict";
 
-  const DEFAULTS = {
-    enabled: true,
-    hidden: [] // country codes to hide
-  };
+  const DEFAULTS = { enabled: true, hidden: [] };
+  const {
+    detectCountry,
+    getTweetData,
+    normalizeSettings,
+    resolveLocationToCountry
+  } = XCF_DETECTION;
 
-  let settings = { ...DEFAULTS };
-
-  // ---- heuristic detection ------------------------------------------------
-
-  // One word-boundary regex per keyword. \b breaks on accented chars, so use
-  // non-word-char boundaries instead.
-  function wordRegex(k) {
-    const esc = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, "iu");
-  }
-
-  const KEYWORD_RES = {};
-  const PLACE_RES = {};
-  for (const [cc, c] of Object.entries(COUNTRY_DB)) {
-    KEYWORD_RES[cc] = c.keywords.map(wordRegex);
-    PLACE_RES[cc] = (c.places || []).map(p => [p, wordRegex(p)]);
-  }
-
-  // "San Francisco, CA" / "Austin TX" — trailing US state abbreviation.
-  const US_STATE_RE = /(?:,\s*|\s)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\s*$/;
-
-  // Languages that map to exactly one country in the DB (excluding English,
-  // which is too widespread to be a signal on its own).
-  const LANG_OWNER = {};
-  {
-    const owners = {};
-    for (const [cc, c] of Object.entries(COUNTRY_DB)) {
-      for (const lang of c.langs) (owners[lang] = owners[lang] || []).push(cc);
-    }
-    for (const [lang, ccs] of Object.entries(owners)) {
-      if (lang !== "en" && ccs.length === 1) LANG_OWNER[lang] = ccs[0];
-    }
-  }
-
-  function resolveLocationToCountry(loc) {
-    if (!loc) return null;
-    let best = null, bestLen = 0;
-    for (const cc of Object.keys(PLACE_RES)) {
-      for (const [place, re] of PLACE_RES[cc]) {
-        if (place.length > bestLen && re.test(loc)) { best = cc; bestLen = place.length; }
-      }
-    }
-    if (best) return best;
-    if (US_STATE_RE.test(loc)) return "US";
-    return null;
-  }
-
-  function getTweetData(article) {
-    let handle = null;
-    const userName = article.querySelector('div[data-testid="User-Name"]');
-    if (userName) {
-      for (const a of userName.querySelectorAll('a[href^="/"]')) {
-        const href = a.getAttribute("href");
-        if (/^\/[A-Za-z0-9_]{1,15}$/.test(href)) { handle = href.slice(1).toLowerCase(); break; }
-      }
-    }
-    const textEl = article.querySelector('div[data-testid="tweetText"]');
-    return {
-      handle,
-      text: textEl ? textEl.textContent : "",
-      lang: textEl ? textEl.getAttribute("lang") : null
-    };
-  }
-
-  function heuristicCountry({ handle, text, lang }) {
-    if (handle) {
-      for (const [cc, c] of Object.entries(COUNTRY_DB)) {
-        if (c.handles.includes(handle)) return cc;
-      }
-    }
-    if (text) {
-      let best = null, bestScore = 0;
-      for (const cc of Object.keys(COUNTRY_DB)) {
-        let score = 0;
-        for (const re of KEYWORD_RES[cc]) if (re.test(text)) score++;
-        if (score > bestScore) { bestScore = score; best = cc; }
-      }
-      if (best) return best;
-    }
-    if (lang) {
-      const base = lang.split("-")[0].toLowerCase();
-      if (LANG_OWNER[base]) return LANG_OWNER[base];
-    }
-    return null;
-  }
+  let settings = normalizeSettings(DEFAULTS);
 
   // ---- profile-location lookup (your own session, same-origin) ------------
 
@@ -111,36 +25,47 @@
   const GQL_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
 
   const CACHE_KEY = "xcfLocCache";
+  const CACHE_VERSION = 2;
   const CACHE_TTL = 7 * 24 * 3600 * 1000;
   const CACHE_MAX = 5000;
   const BATCH_SIZE = 40;
   const PUMP_INTERVAL = 2500;
 
-  let locCache = {};        // handle -> { loc, cc, ts }
+  let locCache = new Map(); // handle -> { loc, cc, matchedPlace, ts }
   let queue = [];
-  let queued = new Set();
+  const queued = new Set();
   let pumping = false;
   let cooldownUntil = 0;
   let batchEndpointDead = false;
-  let gqlExtraFeatures = {};
+  const gqlExtraFeatures = Object.create(null);
   let persistTimer = null;
   let observer = null;
   let pumpTimer = null;
+  let articleTimer = null;
+  const pendingArticles = new Set();
+  const detectionState = new WeakMap();
+
+  globalThis.XCF_DEBUG = Object.freeze({
+    get: cell => detectionState.get(cell) || null
+  });
 
   // When the extension is reloaded/updated, this copy of the script is
-  // orphaned: chrome.* APIs vanish but its timers keep firing. Detect that
-  // and shut down quietly (the reloaded tab gets a fresh copy).
+  // orphaned: chrome.* APIs vanish but observers and timers can keep firing.
   function orphaned() {
-    if (chrome.runtime && chrome.runtime.id) return false;
+    try {
+      if (chrome.runtime && chrome.runtime.id) return false;
+    } catch { /* extension context was invalidated */ }
     clearInterval(pumpTimer);
     clearTimeout(persistTimer);
+    clearTimeout(articleTimer);
     if (observer) observer.disconnect();
+    document.querySelectorAll(".xcf-hidden").forEach(cell => clearDetectionData(cell));
     return true;
   }
 
   function getCsrf() {
-    const m = document.cookie.match(/(?:^|;\s*)ct0=([^;]+)/);
-    return m ? m[1] : null;
+    const match = document.cookie.match(/(?:^|;\s*)ct0=([^;]+)/);
+    return match ? match[1] : null;
   }
 
   function apiHeaders(csrf) {
@@ -152,8 +77,14 @@
     };
   }
 
-  function setCached(handle, loc) {
-    locCache[handle] = { loc, cc: resolveLocationToCountry(loc), ts: Date.now() };
+  function setCached(handle, location) {
+    const resolved = resolveLocationToCountry(location);
+    locCache.set(handle, {
+      loc: location,
+      cc: resolved.country,
+      matchedPlace: resolved.matchedPlace,
+      ts: Date.now()
+    });
     queued.delete(handle);
   }
 
@@ -161,36 +92,45 @@
     clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       if (orphaned()) return;
-      const entries = Object.entries(locCache);
+      let entries = [...locCache.entries()];
       if (entries.length > CACHE_MAX) {
         entries.sort((a, b) => b[1].ts - a[1].ts);
-        locCache = Object.fromEntries(entries.slice(0, CACHE_MAX));
+        entries = entries.slice(0, CACHE_MAX);
+        locCache = new Map(entries);
       }
-      try { chrome.storage.local.set({ [CACHE_KEY]: locCache }); } catch { /* context died mid-write */ }
+      const payload = { version: CACHE_VERSION, entries: Object.fromEntries(entries) };
+      try { chrome.storage.local.set({ [CACHE_KEY]: payload }); } catch { /* context died mid-write */ }
     }, 2000);
   }
 
   function enqueue(handle) {
-    if (queued.has(handle) || queue.length > 500) return;
+    if (queued.has(handle) || queue.length >= 500) return;
     queued.add(handle);
     queue.push(handle);
   }
 
-  // Batch endpoint: one request resolves up to ~100 accounts.
   async function lookupBatch(handles, csrf) {
-    const res = await fetch(`/i/api/1.1/users/lookup.json?screen_name=${handles.join(",")}`, {
+    const response = await fetch(`/i/api/1.1/users/lookup.json?screen_name=${handles.join(",")}`, {
       headers: apiHeaders(csrf),
       credentials: "include"
     });
-    if (res.status === 404 || res.status === 410) { batchEndpointDead = true; return null; }
-    if (res.status === 429) { cooldownUntil = Date.now() + 120000; return null; }
-    if (!res.ok) { cooldownUntil = Date.now() + 30000; return null; }
-    return res.json();
+    if (response.status === 404 || response.status === 410) {
+      batchEndpointDead = true;
+      return null;
+    }
+    if (response.status === 429) {
+      cooldownUntil = Date.now() + 120000;
+      return null;
+    }
+    if (!response.ok) {
+      cooldownUntil = Date.now() + 30000;
+      return null;
+    }
+    return response.json();
   }
 
-  // Per-handle GraphQL fallback. X rejects requests with a "features cannot
-  // be null" error when its required feature flags change; we parse that
-  // error and retry with the missing flags added (self-healing).
+  // X sometimes adds required GraphQL feature flags. Parse that error once and
+  // retry with the missing flags disabled so minor API changes self-heal.
   async function lookupGraphql(handle, csrf, retried) {
     const features = {
       hidden_profile_subscriptions_enabled: false,
@@ -211,24 +151,28 @@
       variables: JSON.stringify({ screen_name: handle, withSafetyModeUserFields: true }),
       features: JSON.stringify(features)
     });
-    const res = await fetch(`/i/api/graphql/${GQL_QUERY_ID}/UserByScreenName?${params}`, {
+    const response = await fetch(`/i/api/graphql/${GQL_QUERY_ID}/UserByScreenName?${params}`, {
       headers: apiHeaders(csrf),
       credentials: "include"
     });
-    if (res.status === 429) { cooldownUntil = Date.now() + 120000; return null; }
-    const j = await res.json().catch(() => null);
-    if (!res.ok) {
-      const msg = j && j.errors && j.errors[0] && j.errors[0].message || "";
-      const m = msg.match(/features cannot be null:\s*(.+)/i);
-      if (m && !retried) {
-        for (const f of m[1].split(",")) gqlExtraFeatures[f.trim()] = false;
+    if (response.status === 429) {
+      cooldownUntil = Date.now() + 120000;
+      return null;
+    }
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message = body && body.errors && body.errors[0] && body.errors[0].message || "";
+      const missing = message.match(/features cannot be null:\s*(.+)/i);
+      if (missing && !retried) {
+        for (const feature of missing[1].split(",")) gqlExtraFeatures[feature.trim()] = false;
         return lookupGraphql(handle, csrf, true);
       }
       return "";
     }
-    const r = j && j.data && j.data.user && j.data.user.result;
-    if (!r) return "";
-    return (r.legacy && r.legacy.location) || (r.location && r.location.location) || "";
+    const result = body && body.data && body.data.user && body.data.user.result;
+    if (!result) return "";
+    return (result.legacy && result.legacy.location) ||
+      (result.location && result.location.location) || "";
   }
 
   async function pumpQueue() {
@@ -236,7 +180,8 @@
     if (pumping || !queue.length || Date.now() < cooldownUntil) return;
     if (!settings.enabled || settings.hidden.length === 0) return;
     const csrf = getCsrf();
-    if (!csrf) return; // not logged in — heuristics only
+    if (!csrf) return; // logged out — use local evidence only
+
     pumping = true;
     try {
       if (!batchEndpointDead) {
@@ -244,64 +189,107 @@
         const results = await lookupBatch(batch, csrf);
         if (results) {
           queue = queue.slice(batch.length);
-          const byHandle = {};
-          for (const u of results) byHandle[(u.screen_name || "").toLowerCase()] = u.location || "";
-          for (const h of batch) setCached(h, byHandle[h] !== undefined ? byHandle[h] : "");
+          const byHandle = new Map();
+          for (const user of results) {
+            byHandle.set((user.screen_name || "").toLowerCase(), user.location || "");
+          }
+          for (const handle of batch) {
+            setCached(handle, byHandle.has(handle) ? byHandle.get(handle) : "");
+          }
           persistCache();
-          scheduleScan();
+          scanAll();
         }
       } else {
-        const h = queue.shift();
-        const loc = await lookupGraphql(h, csrf, false);
-        if (loc === null) queue.unshift(h); // rate limited, retry later
-        else { setCached(h, loc); persistCache(); scheduleScan(); }
+        const handle = queue.shift();
+        const location = await lookupGraphql(handle, csrf, false);
+        if (location === null) queue.unshift(handle);
+        else {
+          setCached(handle, location);
+          persistCache();
+          scanAll();
+        }
       }
-    } catch { /* network hiccup — queue survives for the next tick */ }
+    } catch { /* network hiccup — keep queued handles for the next tick */ }
     pumping = false;
   }
 
   // ---- rendering ----------------------------------------------------------
 
+  function clearDetectionData(cell) {
+    cell.classList.remove("xcf-hidden");
+    detectionState.delete(cell);
+  }
+
   function applyToArticle(article) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
-    cell.classList.remove("xcf-hidden");
-
+    clearDetectionData(cell);
     if (!settings.enabled || settings.hidden.length === 0) return;
 
     const data = getTweetData(article);
-    let cc = null;
-    if (data.handle) {
-      const cached = locCache[data.handle];
-      if (cached) cc = cached.cc;
-      else enqueue(data.handle);
+    const cached = data.handle ? locCache.get(data.handle) : null;
+    if (data.handle && !cached) enqueue(data.handle);
+
+    const detection = detectCountry({
+      ...data,
+      locationCountry: cached && cached.cc,
+      locationReason: cached && cached.matchedPlace
+        ? `profile location: ${cached.matchedPlace}`
+        : "profile location"
+    });
+
+    detectionState.set(cell, detection);
+    if (detection.country && settings.hidden.includes(detection.country)) {
+      cell.classList.add("xcf-hidden");
     }
-    if (!cc) cc = heuristicCountry(data);
-    if (cc && settings.hidden.includes(cc)) cell.classList.add("xcf-hidden");
   }
 
-  function scan() {
+  function scanAll() {
     document.querySelectorAll('article[data-testid="tweet"]').forEach(applyToArticle);
+  }
+
+  function scheduleArticle(article) {
+    pendingArticles.add(article);
+    if (articleTimer) return;
+    articleTimer = setTimeout(() => {
+      articleTimer = null;
+      const articles = [...pendingArticles];
+      pendingArticles.clear();
+      for (const item of articles) {
+        if (item.isConnected) applyToArticle(item);
+      }
+    }, 100);
+  }
+
+  function observeAddedPosts(mutations) {
+    if (orphaned()) return;
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        const element = node.nodeType === 1 ? node : node.parentElement;
+        if (!element) continue;
+        const containingArticle = element.closest('article[data-testid="tweet"]');
+        if (containingArticle) scheduleArticle(containingArticle);
+        if (element.matches('article[data-testid="tweet"]')) scheduleArticle(element);
+        element.querySelectorAll('article[data-testid="tweet"]').forEach(scheduleArticle);
+      }
+    }
   }
 
   // ---- wiring -------------------------------------------------------------
 
-  let scheduled = false;
-  function scheduleScan() {
-    if (scheduled) return;
-    scheduled = true;
-    setTimeout(() => { scheduled = false; scan(); }, 250);
-  }
-
-  chrome.storage.local.get(CACHE_KEY, o => {
-    const saved = o[CACHE_KEY] || {};
+  chrome.storage.local.get(CACHE_KEY, stored => {
+    const raw = stored[CACHE_KEY];
+    const saved = raw && raw.version === CACHE_VERSION ? raw.entries : raw || {};
     const now = Date.now();
-    for (const [h, v] of Object.entries(saved)) {
-      if (v && now - v.ts < CACHE_TTL) locCache[h] = v;
+    for (const [handle, value] of Object.entries(saved || {})) {
+      if (value && Number.isFinite(value.ts) && now - value.ts < CACHE_TTL) {
+        locCache.set(handle, value);
+      }
     }
-    chrome.storage.sync.get(DEFAULTS, s => {
-      settings = s;
-      scan();
-      observer = new MutationObserver(scheduleScan);
+
+    chrome.storage.sync.get(DEFAULTS, value => {
+      settings = normalizeSettings(value);
+      scanAll();
+      observer = new MutationObserver(observeAddedPosts);
       observer.observe(document.body, { childList: true, subtree: true });
       pumpTimer = setInterval(pumpQueue, PUMP_INTERVAL);
     });
@@ -309,7 +297,18 @@
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "sync") return;
-    for (const [key, { newValue }] of Object.entries(changes)) settings[key] = newValue;
-    scan();
+    const next = { ...settings };
+    let relevant = false;
+    for (const key of Object.keys(DEFAULTS)) {
+      if (changes[key]) {
+        relevant = true;
+        next[key] = changes[key].newValue === undefined
+          ? DEFAULTS[key]
+          : changes[key].newValue;
+      }
+    }
+    if (!relevant) return;
+    settings = normalizeSettings(next);
+    scanAll();
   });
 })();

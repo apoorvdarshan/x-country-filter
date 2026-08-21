@@ -107,8 +107,9 @@ English
 | Asset | File | Notes |
 |---|---|---|
 | Store icon | `store-assets/store-icon-128.png` | 128×128 prohibition-mark logo with transparent outer corners |
-| Screenshot 1 (hero, upload first) | `store-assets/screenshot-2-hero-1280x800.png` | branded card: logo + tagline + popup |
-| Screenshot 2 (timeline) | `store-assets/screenshot-1-timeline-1280x800.png` | popup open over a real x.com feed |
+| Screenshot 1 (hero, upload first) | `store-assets/screenshot-1-hero-1280x800.png` | new logo, country/region tagline, and popup preview |
+| Screenshot 2 (features) | `store-assets/screenshot-2-features-1280x800.png` | 249 countries, 10 regions, search, and username exceptions |
+| Screenshot 3 (privacy) | `store-assets/screenshot-3-privacy-1280x800.png` | privacy promises plus X and X Pro support |
 | Small promo tile (optional) | — not made yet | 440×280 PNG, improves discovery placement |
 
 ### Global assets
@@ -199,7 +200,7 @@ https://github.com/apoorvdarshan/x-country-filter/blob/master/PRIVACY.md
 - [ ] Zip uploaded (Package tab shows title + summary from manifest)
 - [ ] Description, category, language filled
 - [ ] Store icon uploaded (128×128)
-- [ ] Both 1280×800 screenshots uploaded, hero first
+- [ ] All three 1280×800 screenshots uploaded, hero first
 - [ ] Privacy tab: purpose, 2 justifications, Website content disclosure, policy URL
 - [ ] Distribution: public, all regions
 - [ ] "Submit for review" (first review typically takes a few days)

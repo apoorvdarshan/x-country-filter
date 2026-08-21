@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X Country Filter",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Hide X (Twitter) posts from countries or regions you pick.",
   "permissions": ["storage"],
   "content_scripts": [

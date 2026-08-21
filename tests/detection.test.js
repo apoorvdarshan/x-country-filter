@@ -258,7 +258,7 @@ for (const file of ["popup.html", "popup.css", "popup.js"]) {
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.2");
+  assert.equal(manifest.version, "1.6.3");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 

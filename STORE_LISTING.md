@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.6.2.zip`
+Upload: `dist/country-filter-for-x-1.6.3.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.6.2.zip \
+cd store && zip -qr ../dist/country-filter-for-x-1.6.3.zip \
   manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```
@@ -106,7 +106,7 @@ English
 
 | Asset | File | Notes |
 |---|---|---|
-| Store icon | `store-assets/store-icon-128.png` | 128×128, artwork 96×96 + 16px transparent padding |
+| Store icon | `store-assets/store-icon-128.png` | 128×128 prohibition-mark logo with transparent outer corners |
 | Screenshot 1 (hero, upload first) | `store-assets/screenshot-2-hero-1280x800.png` | branded card: logo + tagline + popup |
 | Screenshot 2 (timeline) | `store-assets/screenshot-1-timeline-1280x800.png` | popup open over a real x.com feed |
 | Small promo tile (optional) | — not made yet | 440×280 PNG, improves discovery placement |

@@ -11,14 +11,14 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.1.0.zip`
+Upload: `dist/country-filter-for-x-1.2.0.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.1.0.zip \
-  manifest.json detection.js content.js content.css countries.js \
+cd store && zip -qr ../dist/country-filter-for-x-1.2.0.zip \
+  manifest.json detection.js account-location.js content.js content.css countries.js \
   popup.html popup.js popup.css icons -x '.*'
 ```
 
@@ -42,7 +42,7 @@ Fields on the Package tab that need no action:
 2. Click the extension icon in the toolbar.
 3. Check any country (e.g. India) — posts detected as being from it disappear from the feed immediately.
 4. Uncheck it — the posts reappear. The header toggle disables the whole filter.
-5. Detection combines known accounts, country/city keywords, and post language. Weak or conflicting evidence stays visible.
+5. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Broad regions, weak evidence, and conflicting evidence stay visible.
 ```
 
 ---
@@ -69,10 +69,10 @@ Hide posts from countries you pick — a simple blocklist for your X timeline.
 Check a country in the popup and posts from it disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Everything else stays untouched.
 
 HOW IT WORKS
-The extension combines signals already on the page — well-known accounts, country and city names in the post text, and the post's language — into a confidence score. A single keyword or language is not enough to hide a post, and weak or conflicting evidence stays visible.
+The extension checks X's public "Account based in" metadata for post authors first. It then falls back to public profile location and signals already on the page — well-known accounts, country and city names in the post text, and the post's language. Broad regions such as "South Asia", a single keyword, and weak or conflicting evidence stay visible.
 
 PRIVACY
-No data is collected. No analytics, no tracking, no external servers. Your settings stay in your browser (synced with your Chrome profile), and the extension only runs on x.com, pro.x.com, and twitter.com.
+No analytics, no tracking, and no developer-controlled servers. Public author handles are sent only to X's own API through your existing X session; account-country results are cached locally for up to 24 hours. Your settings stay in your browser, and the extension only runs on x.com, pro.x.com, and twitter.com.
 
 FEATURES
 • 20 countries to choose from, one-click on/off
@@ -143,7 +143,7 @@ Saves the user's settings: the on/off state and the list of countries they chose
 ### Permission justification — host permission (x.com, pro.x.com, twitter.com content scripts)
 
 ```
-The extension needs to run on x.com, pro.x.com, and twitter.com to read the author handle, text, and language of posts already displayed on the page and hide the ones matching the user's blocked countries. It does not run anywhere else.
+The extension needs to run on x.com, pro.x.com, and twitter.com to read post author handles, request those authors' public "Account based in" or profile-location metadata from X's own API, inspect displayed post text and language as fallback signals, and hide posts matching the user's blocked countries. It does not run anywhere else and sends nothing to a developer-controlled server.
 ```
 
 ### Are you using remote code?
@@ -154,10 +154,17 @@ Leave the justification box empty.
 
 ### Data usage
 
-"What user data do you plan to collect" — leave **all nine checkboxes
-unchecked** (PII, health, financial, authentication, personal communications,
-location, web history, user activity, website content). The extension collects
-none of them; post text is read in-page and never stored or transmitted.
+"What user data do you plan to collect" — check **Website content** because the
+extension processes public X author handles and account-country/profile-location
+metadata. Leave the other categories unchecked; it does not collect the user's
+precise location, authentication information, browsing history, communications,
+or financial/health information.
+
+Website content use justification:
+
+```
+Public X author handles are sent only to X's own API to retrieve public account-country or profile-location metadata needed to filter posts. Results are cached locally for up to 24 hours. Nothing is sent to the developer, used for analytics or advertising, sold, or shared with another service.
+```
 
 Certify all three disclosures:
 
@@ -189,7 +196,7 @@ https://github.com/apoorvdarshan/x-country-filter/blob/master/PRIVACY.md
 - [ ] Description, category, language filled
 - [ ] Store icon uploaded (128×128)
 - [ ] Both 1280×800 screenshots uploaded, hero first
-- [ ] Privacy tab: purpose, 2 justifications, "no data collected", policy URL
+- [ ] Privacy tab: purpose, 2 justifications, Website content disclosure, policy URL
 - [ ] Distribution: public, all regions
 - [ ] "Submit for review" (first review typically takes a few days)
 

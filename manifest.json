@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
   "name": "X Country Filter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Hide X (Twitter) posts from countries you pick.",
   "permissions": ["storage"],
   "content_scripts": [
     {
       "matches": ["https://x.com/*", "https://pro.x.com/*", "https://twitter.com/*"],
-      "js": ["countries.js", "detection.js", "content.js"],
+      "js": ["countries.js", "detection.js", "account-location.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

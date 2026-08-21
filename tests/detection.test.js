@@ -64,6 +64,39 @@ const conflictingStrongSignals = detection.detectCountry({
 assert.equal(conflictingStrongSignals.country, null);
 assert.equal(conflictingStrongSignals.ambiguous, true, "conflicting strong evidence must fail open");
 
+expectCountry(
+  {
+    accountCountry: "IN",
+    accountReason: "X account based in: India",
+    handle: "techcrunch",
+    text: "Japan Tokyo Nintendo",
+    lang: "ja"
+  },
+  "IN",
+  "X account-based country must override weaker and conflicting signals"
+);
+
+assert.deepEqual(
+  JSON.parse(JSON.stringify(detection.resolveAccountBasedIn(" India "))),
+  { country: "IN", matchedPlace: "India" }
+);
+assert.equal(detection.resolveAccountBasedIn("United Arab Emirates").country, "AE");
+assert.equal(detection.resolveAccountBasedIn("U.S.A.").country, "US");
+assert.equal(
+  detection.resolveAccountBasedIn("South Asia").country,
+  null,
+  "broad X regions must not be guessed as a country"
+);
+
+assert.equal(detection.extractAccountBasedIn({
+  data: {
+    user_result_by_screen_name: {
+      result: { about_profile: { account_based_in: "India" } }
+    }
+  }
+}), "India");
+assert.equal(detection.extractAccountBasedIn({ data: {} }), "");
+
 assert.deepEqual(
   JSON.parse(JSON.stringify(detection.resolveLocationToCountry("Paris, TX"))),
   { country: "US", matchedPlace: "US state abbreviation" }
@@ -108,8 +141,18 @@ assert.equal(
   fs.readFileSync("store/detection.js", "utf8"),
   "developer and store builds must share identical detection rules"
 );
+assert.equal(
+  fs.readFileSync("account-location.js", "utf8"),
+  fs.readFileSync("store/account-location.js", "utf8"),
+  "developer and store builds must share identical account lookup rules"
+);
+assert.equal(
+  fs.readFileSync("content.js", "utf8"),
+  fs.readFileSync("store/content.js", "utf8"),
+  "developer and store builds must share identical content behavior"
+);
 
-function smokeContentScript(countryFile, detectionFile, contentFile) {
+function smokeContentScript(countryFile, detectionFile, accountFile, contentFile) {
   const context = {
     URL,
     clearInterval() {},
@@ -142,13 +185,18 @@ function smokeContentScript(countryFile, detectionFile, contentFile) {
   };
   context.globalThis = context;
   vm.createContext(context);
-  for (const file of [countryFile, detectionFile, contentFile]) {
+  for (const file of [countryFile, detectionFile, accountFile, contentFile]) {
     vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
   }
   assert.equal(typeof context.XCF_DEBUG.get, "function", `${contentFile} must initialize`);
 }
 
-smokeContentScript("countries.js", "detection.js", "content.js");
-smokeContentScript("store/countries.js", "store/detection.js", "store/content.js");
+smokeContentScript("countries.js", "detection.js", "account-location.js", "content.js");
+smokeContentScript(
+  "store/countries.js",
+  "store/detection.js",
+  "store/account-location.js",
+  "store/content.js"
+);
 
 console.log("Detection tests passed");

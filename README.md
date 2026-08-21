@@ -13,10 +13,9 @@ reply threads. Everything else stays untouched.
 **[Install from the Chrome Web Store →](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)**
 — the one-click option.
 
-> The Chrome Web Store build detects countries from what's already on the page
-> (known accounts, keywords, post language). The developer-mode version below
-> adds a stronger signal: the author's profile location, looked up from X's own
-> API in your logged-in session. See [How detection works](#how-detection-works).
+> The extension checks X's public "Account based in" metadata through your
+> logged-in X session, then falls back to conservative local signals. See
+> [How detection works](#how-detection-works).
 
 ### Install (developer mode)
 
@@ -29,42 +28,44 @@ reply threads. Everything else stays untouched.
 
 The extension combines independent signals into a confidence score:
 
-1. **Author's profile location** (strongest) — the developer build calls X's internal API
-   *as you* (same-origin fetch from x.com, so your session cookies are sent
-   automatically) and reads each author's profile "location" field, then maps the
-   free text to a country ("Bengaluru, India" → IN, "San Francisco, CA" → US,
-   "東京" → JP). Results are cached for 7 days in `chrome.storage.local`.
-2. **Known accounts** — lists of well-known tech-news handles per country in `countries.js`
-3. **Keywords** — country/city/company names in the post text (word-boundary matched)
-4. **Post language** — scored only when the language maps to exactly one country
+1. **X's "Account based in" value** (strongest) — fetched from X's own
+   `AboutAccountQuery`. Exact countries are accepted; broad regions such as
+   "South Asia" are ignored rather than guessed. Results are cached locally for
+   up to 24 hours.
+2. **Author's public profile location** — used as a fallback and mapped from
+   free text ("Bengaluru, India" → IN, "San Francisco, CA" → US, "東京" → JP).
+3. **Known accounts** — lists of well-known tech-news handles per country in `countries.js`
+4. **Keywords** — country/city/company names in the post text (word-boundary matched)
+5. **Post language** — scored only when the language maps to exactly one country
    in the database (ja → Japan, ko → South Korea...). English is never scored.
 
 A single keyword or language never hides a post by itself. Weak evidence stays
-visible, and competing countries are treated as ambiguous. Known-author or
-profile-location evidence can outweigh weaker topic text. The final country,
+visible, and competing countries are treated as ambiguous. Account metadata
+overrides weaker signals; known-author or profile-location evidence can outweigh topic text. The final country,
 confidence, and reasons are retained locally for debugging without being added
 to the page markup.
 
 ## About the API access ("cookies")
 
-- Requests go to `x.com/i/api/...` from a content script running on x.com — the
-  browser attaches your own cookies. Nothing is read, copied, or sent anywhere else.
+- Requests go directly to X's `/i/api/...` endpoints from the X page. The
+  browser attaches your existing X session; nothing is sent to the developer.
 - Two extra headers are needed: the public bearer token of X's own web client
   (a constant shipped in their JS bundle, identical for everyone — it identifies
   the app, not you) and `x-csrf-token`, which is just your `ct0` cookie value.
-- Lookups are batched (up to 40 accounts per request, one request per ~2.5 s) and
-  cached 7 days, so traffic is minimal. On HTTP 429 it backs off for 2 minutes.
+- Lookups are throttled to two accounts per ~2.5 seconds and cached for 24
+  hours. On HTTP 429 the extension backs off for 2 minutes.
 - Logged out? Lookups are skipped and the heuristic fallbacks still work.
 
 ## If X changes their API
 
-- Primary endpoint is `/i/api/1.1/users/lookup.json` (batch). If X removes it, the
-  extension automatically falls back to the `UserByScreenName` GraphQL call.
+- Primary endpoint is the `AboutAccountQuery` GraphQL call. The public profile
+  location is the fallback when X returns a broad region or no exact country.
+- Profile fallback first tries `/i/api/1.1/users/lookup.json`; if X removes it,
+  the extension automatically falls back to `UserByScreenName`.
 - The GraphQL call self-heals when X adds new required feature flags (it parses the
   "features cannot be null" error and retries). If the **query id** itself expires
-  (404): open DevTools → Network on x.com, visit any profile, find the
-  `UserByScreenName` request and copy the id segment of its URL into
-  `GQL_QUERY_ID` in `content.js`.
+  (404), update the corresponding operation id in `account-location.js` from a
+  current X web request.
 - If X renames its `data-testid` attributes (`tweet`, `tweetText`, `User-Name`,
   `cellInnerDiv`), the selectors in `content.js` need updating.
 
@@ -80,16 +81,18 @@ to the page markup.
 The extension has no build-time dependencies. Run the detection regression suite with:
 
 ```sh
-node tests/detection.test.js
+node tests/detection.test.js && node tests/account-location.test.js
 ```
 
 ## Limitations
 
-- Profile location is free text users set themselves — empty, joke locations
-  ("the internet", "Mars"), or unlisted cities resolve to nothing and fall back
-  to the weaker heuristics
+- X may return a broad region such as "South Asia" rather than a country;
+  regional results are deliberately ignored rather than guessed
+- "Account based in" is X's estimate for the account, not a verified
+  nationality or current physical residence
+- Profile-location fallback is user-written free text and may be empty or false
 - Detection is deliberately conservative; uncertain posts remain visible
-- Detection is best-effort because X exposes no verified location for accounts
+- X can change its private web API, so account lookup remains best-effort
 
 ## License
 

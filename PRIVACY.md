@@ -1,32 +1,28 @@
 # Privacy Policy — Country Filter for X
 
-**Last updated: August 19, 2026**
+**Last updated: August 21, 2026**
 
 Country Filter for X ("the extension") is a browser extension that hides posts
 on x.com, including X Pro at pro.x.com, from countries the user selects.
 
 ## Data collection
 
-**The extension collects no data. Nothing is transmitted to the developer or to
-any third party.**
+**The extension sends no data to the developer and uses no developer-controlled
+server. It does not sell or share data with outside services.**
 
 - Your settings (on/off state and selected countries) are stored using Chrome's
   built-in extension storage (`chrome.storage`), which stays in your browser
   and your Chrome profile sync — the developer has no access to it.
-- Country detection runs entirely locally in your browser by reading the posts
-  already displayed on the page (author handle, post text, post language).
+- To identify an account's country, the extension sends that public account
+  handle directly to X's own API through your existing logged-in X session and
+  reads X's public "Account based in" or profile-location response. The request
+  is not sent anywhere else.
+- Account-country results are cached in `chrome.storage.local` for up to 24
+  hours. Detection also reads post text and language already displayed on the
+  page. All filtering and scoring happen locally in your browser.
 - The extension has no analytics, no tracking, no ads, and makes no network
   requests to any developer-controlled server. It cannot read your browsing
   history and only runs on x.com, pro.x.com, and twitter.com.
-
-## The open-source developer version
-
-The [GitHub version](https://github.com/apoorvdarshan/x-country-filter) of this
-extension additionally looks up post authors' public profile location fields by
-querying X's own API from within your logged-in x.com session. Those requests go
-directly from your browser to X — the same place the data lives — and results
-are cached locally in your browser. That data likewise never reaches the
-developer or anyone else.
 
 ## Contact
 

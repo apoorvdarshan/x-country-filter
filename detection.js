@@ -21,6 +21,7 @@ globalThis.XCF_DETECTION = (() => {
   const placeRegexes = new Map();
   const handleCountries = new Map();
   const languageCountries = new Map();
+  const accountCountryLabels = new Map();
 
   for (const [country, data] of Object.entries(COUNTRY_DB)) {
     keywordRegexes.set(country, data.keywords.map(keyword => [keyword, wordRegex(keyword)]));
@@ -31,9 +32,35 @@ globalThis.XCF_DETECTION = (() => {
       owners.push(country);
       languageCountries.set(language, owners);
     }
+    accountCountryLabels.set(normalizeCountryLabel(data.name), country);
+  }
+
+  // X normally returns a canonical country name, but a few labels differ from
+  // the short display names used in the popup.
+  const ACCOUNT_COUNTRY_ALIASES = {
+    "great britain": "GB",
+    "korea, republic of": "KR",
+    "republic of korea": "KR",
+    "u.a.e": "AE",
+    "united arab emirates": "AE",
+    "united states of america": "US",
+    "u.s": "US",
+    "u.s.a": "US"
+  };
+  for (const [label, country] of Object.entries(ACCOUNT_COUNTRY_ALIASES)) {
+    accountCountryLabels.set(normalizeCountryLabel(label), country);
   }
 
   const US_STATE_RE = /(?:,\s*|\s)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\s*$/i;
+
+  function normalizeCountryLabel(value) {
+    return String(value || "")
+      .normalize("NFKC")
+      .trim()
+      .toLowerCase()
+      .replace(/[.]/g, "")
+      .replace(/\s+/g, " ");
+  }
 
   function handleFromHref(href) {
     if (!href) return null;
@@ -99,6 +126,26 @@ globalThis.XCF_DETECTION = (() => {
     return { country: bestCountry, matchedPlace: bestPlace };
   }
 
+  // `account_based_in` can also contain a broad region such as "South Asia".
+  // Only exact country labels are accepted so a regional result never blocks
+  // several countries by guesswork.
+  function resolveAccountBasedIn(value) {
+    const label = normalizeCountryLabel(value);
+    return {
+      country: accountCountryLabels.get(label) || null,
+      matchedPlace: accountCountryLabels.has(label) ? String(value).trim() : null
+    };
+  }
+
+  function extractAccountBasedIn(payload) {
+    const value = payload && payload.data &&
+      payload.data.user_result_by_screen_name &&
+      payload.data.user_result_by_screen_name.result &&
+      payload.data.user_result_by_screen_name.result.about_profile &&
+      payload.data.user_result_by_screen_name.result.about_profile.account_based_in;
+    return typeof value === "string" ? value.trim() : "";
+  }
+
   function addEvidence(scores, country, points, reason) {
     if (!country || !COUNTRY_CODES.has(country)) return;
     const entry = scores.get(country) || { country, score: 0, reasons: [] };
@@ -107,8 +154,32 @@ globalThis.XCF_DETECTION = (() => {
     scores.set(country, entry);
   }
 
-  function detectCountry({ handle, text, lang, locationCountry = null, locationReason = null }) {
+  function detectCountry({
+    handle,
+    text,
+    lang,
+    accountCountry = null,
+    accountReason = null,
+    locationCountry = null,
+    locationReason = null
+  }) {
     const scores = new Map();
+
+    // X's dedicated account metadata is the strongest available signal. It
+    // describes the account itself, unlike post text or a self-written bio.
+    if (accountCountry && COUNTRY_CODES.has(accountCountry)) {
+      return {
+        country: accountCountry,
+        confidence: 100,
+        reasons: [accountReason || "X account-based country"],
+        ambiguous: false,
+        candidates: [{
+          country: accountCountry,
+          score: 100,
+          reasons: [accountReason || "X account-based country"]
+        }]
+      };
+    }
 
     if (locationCountry) {
       addEvidence(scores, locationCountry, 100, locationReason || "profile location");
@@ -166,9 +237,11 @@ globalThis.XCF_DETECTION = (() => {
   return {
     MIN_CONFIDENCE,
     detectCountry,
+    extractAccountBasedIn,
     getTweetData,
     handleFromHref,
     normalizeSettings,
+    resolveAccountBasedIn,
     resolveLocationToCountry
   };
 })();

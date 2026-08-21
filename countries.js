@@ -6,8 +6,7 @@
 //   langs    - BCP-47 lang codes X stamps on tweet text (div[data-testid="tweetText"][lang])
 //   places   - strings matched against the author's profile "location" field
 //              (country names incl. native script, major cities, regions).
-//              This is the strongest signal — the location is fetched from
-//              the profile via your own session and cached.
+//              This backs up X's dedicated account-based country metadata.
 //   keywords - words/phrases in the tweet text that contribute weak evidence
 //   handles  - well-known tech-news accounts from that country (lowercase, no @)
 //

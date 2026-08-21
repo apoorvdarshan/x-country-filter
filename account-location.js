@@ -21,7 +21,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   const PROFILE_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
 
   const CACHE_KEY = "xcfLocCache";
-  const CACHE_VERSION = 6;
+  const CACHE_VERSION = 7;
   const CACHE_TTL = 24 * 3600 * 1000;
   const CACHE_MAX = 5000;
   const PUMP_INTERVAL = 2500;
@@ -191,6 +191,46 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         ts: Date.now()
       });
       queued.delete(handle);
+    }
+
+    function rememberProfile(handle, profileLocation, following = null) {
+      const normalized = normalizeHandle(handle);
+      const resolved = resolveLocationToCountry(profileLocation);
+      if (!normalized || (!resolved.country && typeof following !== "boolean")) return false;
+
+      const existing = cache.get(normalized);
+      const nextFollowing = typeof following === "boolean"
+        ? following
+        : existing && existing.following;
+      if (existing && existing.profileLocation === profileLocation &&
+          existing.following === nextFollowing) return false;
+
+      setCached(normalized, {
+        basedIn: existing && existing.basedIn || "",
+        profileLocation: profileLocation || existing && existing.profileLocation || "",
+        following: nextFollowing
+      });
+      persistCache();
+      return true;
+    }
+
+    function mergeStored(payload) {
+      if (!viewerResolved || !viewerHandle || !payload || payload.version !== CACHE_VERSION ||
+          payload.viewer !== viewerHandle) return false;
+      let changed = false;
+      const now = Date.now();
+      for (const [handle, value] of Object.entries(payload.entries || {})) {
+        const current = cache.get(handle);
+        if (value && Number.isFinite(value.ts) && now - value.ts < CACHE_TTL &&
+            (!current || value.ts > current.ts)) {
+          cache.set(handle, value);
+          queued.delete(handle);
+          queue = queue.filter(item => item !== handle);
+          changed = true;
+        }
+      }
+      if (changed) onUpdate();
+      return changed;
     }
 
     function persistCache() {
@@ -412,7 +452,17 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       clearTimeout(persistTimer);
     }
 
-    return { enqueue, get, getViewerHandle, pump: pumpQueue, start, stop, viewerReady };
+    return {
+      enqueue,
+      get,
+      getViewerHandle,
+      mergeStored,
+      pump: pumpQueue,
+      rememberProfile,
+      start,
+      stop,
+      viewerReady
+    };
   }
 
   return { create };

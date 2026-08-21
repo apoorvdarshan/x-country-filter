@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Country Filter for X (Twitter)",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Hide posts from countries or regions you pick on X, including timelines, search, and reply threads.",
   "permissions": ["storage"],
   "content_scripts": [

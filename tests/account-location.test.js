@@ -123,6 +123,29 @@ async function run() {
   assert.equal(lookup.get("graphqlfollow").following, true);
   assert.ok(requests.some(url => url.includes("UserByScreenName")));
 
+  assert.equal(lookup.rememberProfile("visibleprofile", "Bengaluru, India", false), true);
+  assert.equal(lookup.get("visibleprofile").profileCountry, "IN");
+  assert.equal(lookup.get("visibleprofile").following, false);
+  assert.equal(lookup.mergeStored({
+    version: 7,
+    viewer: "viewer_account",
+    entries: {
+      sharedprofile: {
+        basedIn: "India",
+        profileLocation: "",
+        accountCountry: "IN",
+        accountRegion: "SOUTH_ASIA",
+        profileCountry: null,
+        cc: "IN",
+        matchedPlace: null,
+        following: false,
+        source: "account",
+        ts: Date.now() + 1
+      }
+    }
+  }), true);
+  assert.equal(lookup.get("sharedprofile").accountCountry, "IN");
+
   const priorityStart = requests.length;
   lookup.enqueue("normal_one");
   lookup.enqueue("normal_two");
@@ -139,7 +162,7 @@ async function run() {
 
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
   assert.ok(stored.some(value =>
-    value.xcfLocCache.version === 6 && value.xcfLocCache.viewer === "viewer_account"
+    value.xcfLocCache.version === 7 && value.xcfLocCache.viewer === "viewer_account"
   ));
   assert.ok(updates >= 5, "cache loads and completed lookups must trigger rescans");
 

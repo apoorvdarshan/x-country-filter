@@ -258,7 +258,7 @@ for (const file of ["popup.html", "popup.css", "popup.js"]) {
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.1");
+  assert.equal(manifest.version, "1.6.2");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 
@@ -322,7 +322,8 @@ function runContentScenario({
   expectedHidden,
   expectedReason = null,
   expectedPending = false,
-  viewerHandle = null
+  viewerHandle = null,
+  profile = null
 }) {
   const classes = new Set();
   const cell = {
@@ -331,9 +332,29 @@ function runContentScenario({
       remove: value => classes.delete(value)
     }
   };
+  const timeline = {
+    getAttribute: name => name === "aria-label" ? "Timeline: Test Author’s posts" : null
+  };
+  const primaryColumn = {
+    querySelector: selector => selector.includes("UserLocation") && profile
+      ? { textContent: profile.location }
+      : null,
+    querySelectorAll: selector => selector === "button" && profile &&
+      typeof profile.following === "boolean"
+      ? [{
+          getAttribute: name => name === "aria-label"
+            ? `${profile.following ? "Following" : "Follow"} @test_author`
+            : null
+        }]
+      : []
+  };
   const article = {
     isConnected: true,
-    closest: () => cell,
+    closest: selector => {
+      if (selector.includes('aria-label^="Timeline:"')) return profile ? timeline : null;
+      if (selector.includes("primaryColumn")) return profile ? primaryColumn : null;
+      return cell;
+    },
     querySelectorAll: selector => selector.includes("/status/")
       ? [{ getAttribute: () => "/test_author/status/123" }]
       : [],
@@ -349,6 +370,7 @@ function runContentScenario({
     document: {
       body: {},
       cookie: "",
+      querySelector: selector => primaryColumn.querySelector(selector),
       querySelectorAll: selector => {
         if (selector.includes('article[data-testid="tweet"]')) return [article];
         if (viewerHandle && selector.includes("SideNav_AccountSwitcher_Button")) {
@@ -357,6 +379,7 @@ function runContentScenario({
         return [];
       }
     },
+    location: { pathname: profile ? profile.path || "/test_author" : "/home" },
     setInterval: () => 1,
     setTimeout: () => 1,
     MutationObserver: class { observe() {} disconnect() {} },
@@ -366,7 +389,7 @@ function runContentScenario({
         local: {
           get: (_key, callback) => callback(cached ? {
             xcfLocCache: {
-              version: 6,
+              version: 7,
               viewer: viewerHandle,
               entries: { test_author: { ...cached, ts: Date.now() } }
             }
@@ -435,8 +458,35 @@ runContentScenario({
 runContentScenario({
   settings: { hidden: ["IN"], protectFollowing: false },
   viewerHandle: "test_author",
+  profile: { location: "India", following: false },
   expectedHidden: false,
   expectedReason: "your signed-in account"
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  profile: { location: "India", following: false },
+  expectedHidden: true
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  profile: { location: "India", following: false, path: "/i/decks/123" },
+  expectedHidden: true
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  profile: { location: "India", following: null, path: "/i/decks/123" },
+  expectedHidden: false,
+  expectedPending: true
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  profile: { location: "India", following: true },
+  expectedHidden: false,
+  expectedReason: "account you follow"
 });
 
 console.log("Detection tests passed");

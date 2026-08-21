@@ -16,8 +16,10 @@
     exemptionReason,
     getTweetData,
     isBlockedLocation,
+    normalizeHandle,
     normalizeSettings,
-    regionForCountry
+    regionForCountry,
+    resolveLocationToCountry
   } = XCF_DETECTION;
 
   let settings = normalizeSettings(DEFAULTS);
@@ -57,6 +59,55 @@
     return /['’]s posts$/i.test(label);
   }
 
+  function visibleProfileEvidence(article, handle) {
+    if (!handle || !isProfileTimeline(article) || typeof location === "undefined") return null;
+    const route = String(location.pathname || "").match(/^\/([A-Za-z0-9_]{1,15})(?:\/|$)/);
+    const routeMatches = route && normalizeHandle(route[1]) === normalizeHandle(handle);
+    const roots = [];
+    const primary = article.closest('[data-testid="primaryColumn"]');
+    if (primary) roots.push(primary);
+    for (let node = article.parentElement; node && node !== document.body; node = node.parentElement) {
+      if (typeof node.querySelector === "function" &&
+          node.querySelector('[data-testid="UserLocation"]') && !roots.includes(node)) {
+        roots.push(node);
+      }
+    }
+    if (routeMatches && !roots.includes(document)) roots.push(document);
+
+    for (const root of roots) {
+      const locationElement = root.querySelector('[data-testid="UserLocation"]');
+      const profileLocation = locationElement
+        ? String(locationElement.textContent || "").trim()
+        : "";
+      const resolved = resolveLocationToCountry(profileLocation);
+
+      let following = null;
+      for (const button of root.querySelectorAll("button")) {
+        const label = String(button.getAttribute("aria-label") || "").trim();
+        if (new RegExp(`^Follow @${handle}$`, "i").test(label)) {
+          following = false;
+          break;
+        }
+        if (new RegExp(`^(?:Following|Unfollow) @${handle}$`, "i").test(label)) {
+          following = true;
+          break;
+        }
+      }
+
+      // A matching relationship button safely binds a profile column on X Pro,
+      // whose deck URL does not contain the opened profile's handle.
+      if (!routeMatches && typeof following !== "boolean") continue;
+      if (!resolved.country && typeof following !== "boolean") continue;
+      return {
+        profileLocation,
+        country: resolved.country,
+        matchedPlace: resolved.matchedPlace,
+        following
+      };
+    }
+    return null;
+  }
+
   function applyToArticle(article) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
     clearDetectionData(cell);
@@ -94,10 +145,21 @@
     const cached = data.handle && accountLocations
       ? accountLocations.get(data.handle)
       : null;
+    const profileEvidence = visibleProfileEvidence(article, data.handle);
+    if (profileEvidence && accountLocations) {
+      accountLocations.rememberProfile(
+        data.handle,
+        profileEvidence.profileLocation,
+        profileEvidence.following
+      );
+    }
+    const following = profileEvidence && typeof profileEvidence.following === "boolean"
+      ? profileEvidence.following
+      : cached && cached.following;
     if (data.handle && !cached && accountLocations) {
       accountLocations.enqueue(data.handle, isProfileTimeline(article));
     }
-    if (data.handle && !cached && settings.protectFollowing) {
+    if (data.handle && !cached && settings.protectFollowing && following !== false) {
       detectionState.set(cell, {
         country: null,
         region: null,
@@ -112,7 +174,7 @@
 
     const followedExemption = exemptionReason(
       data.handle,
-      cached && cached.following,
+      following,
       settings,
       viewerHandle
     );
@@ -136,9 +198,11 @@
       accountReason: cached && cached.accountCountry
         ? "X account based in: " + cached.basedIn
         : null,
-      locationCountry: cached && cached.profileCountry,
+      locationCountry: cached && cached.profileCountry || profileEvidence && profileEvidence.country,
       locationReason: cached && cached.profileCountry && cached.matchedPlace
         ? "profile location: " + cached.matchedPlace
+        : profileEvidence && profileEvidence.matchedPlace
+          ? "visible profile location: " + profileEvidence.matchedPlace
         : "profile location"
     });
 
@@ -201,6 +265,10 @@
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.xcfLocCache && accountLocations) {
+      accountLocations.mergeStored(changes.xcfLocCache.newValue);
+      return;
+    }
     if (area !== "sync") return;
     const next = { ...settings };
     let relevant = false;

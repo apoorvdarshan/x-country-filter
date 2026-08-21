@@ -45,6 +45,8 @@ The extension combines independent signals into a confidence score:
    free text ("Bengaluru, India" → IN, "San Francisco, CA" → US, "東京" → JP).
    Every catalog country supports exact names and common aliases; the original
    hand-tuned countries also recognize major cities and native-script names.
+   An opened profile uses its visible location and Follow/Following button
+   immediately instead of waiting for X's API.
 3. **Known accounts** — lists of well-known tech-news handles per country in `countries.js`
 4. **Keywords** — country/city/company names in the post text (word-boundary matched)
 5. **Post language** — scored only when the language maps to exactly one country
@@ -76,6 +78,8 @@ suppresses both `Account based in: South Asia` and exact India detections.
   It is used only to protect that account's posts and scope relationship caches.
 - On X Pro, the Account menu identifies the signed-in username directly, and
   authors in opened profile columns move to the front of the lookup queue.
+- Visible profile evidence is cached locally and shared between open X and
+  X Pro tabs for the same signed-in account.
 - Country, profile-location, and whether-you-follow results are throttled to
   two accounts per ~2.5 seconds and cached for 24 hours. On HTTP 429 the
   extension backs off for 2 minutes.

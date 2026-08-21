@@ -20,8 +20,9 @@ server. It does not sell or share data with outside services.**
 - To identify an account's country, the extension sends that public account
   handle directly to X's own API through your existing logged-in X session and
   reads X's public "Account based in" or profile-location response and whether
-  your logged-in account follows that author. The request is not sent anywhere
-  else.
+  your logged-in account follows that author. On an opened profile, it may also
+  read the public location and Follow/Following state already displayed by X.
+  The request and displayed data are not sent anywhere else.
 - Account-country and followed-account results are cached in
   `chrome.storage.local` for up to 24 hours and scoped to the signed-in
   username. Detection also reads post text and language already displayed on

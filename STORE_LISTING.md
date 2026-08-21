@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.6.1.zip`
+Upload: `dist/country-filter-for-x-1.6.2.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.6.1.zip \
+cd store && zip -qr ../dist/country-filter-for-x-1.6.2.zip \
   manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```
@@ -43,7 +43,7 @@ Fields on the Package tab that need no action:
 3. On the Regions tab, check South Asia — accounts labeled South Asia and exact member-country detections disappear. On the Countries tab, search for India and check it to suppress India alone.
 4. The signed-in account's own posts remain visible automatically. On the Exceptions tab, add another username from that region; its posts remain visible too. Accounts followed by the logged-in user also remain visible while "Accounts you follow" is enabled.
 5. Remove the exception or uncheck the filter — the posts update. The header toggle disables the whole filter.
-6. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Weak and conflicting evidence stays visible.
+6. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Opened profiles use their visible location and Follow/Following state immediately. Weak and conflicting evidence stays visible.
 ```
 
 ---

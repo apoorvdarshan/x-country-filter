@@ -3,9 +3,9 @@
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-1d9bf0?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)
 [![Product Hunt](https://img.shields.io/badge/Product%20Hunt-Upvote-DA552F?logo=producthunt&logoColor=white)](https://www.producthunt.com/products/country-filter-for-x-twitter/)
 
-Chrome extension (Manifest V3) that hides posts from countries you pick on
+Chrome extension (Manifest V3) that hides posts from countries or regions you pick on
 **x.com**, including **X Pro** at **pro.x.com**.
-Check a country in the popup → its posts disappear from your timeline, search, and
+Check a country or region in the popup → its posts disappear from your timeline, search, and
 reply threads. Everything else stays untouched.
 
 ## Install
@@ -29,9 +29,8 @@ reply threads. Everything else stays untouched.
 The extension combines independent signals into a confidence score:
 
 1. **X's "Account based in" value** (strongest) — fetched from X's own
-   `AboutAccountQuery`. Exact countries are accepted; broad regions such as
-   "South Asia" are ignored rather than guessed. Results are cached locally for
-   up to 24 hours.
+   `AboutAccountQuery`. Both exact countries and broad regions such as "South
+   Asia" are recognized. Results are cached locally for up to 24 hours.
 2. **Author's public profile location** — used as a fallback and mapped from
    free text ("Bengaluru, India" → IN, "San Francisco, CA" → US, "東京" → JP).
 3. **Known accounts** — lists of well-known tech-news handles per country in `countries.js`
@@ -41,9 +40,13 @@ The extension combines independent signals into a confidence score:
 
 A single keyword or language never hides a post by itself. Weak evidence stays
 visible, and competing countries are treated as ambiguous. Account metadata
-overrides weaker signals; known-author or profile-location evidence can outweigh topic text. The final country,
-confidence, and reasons are retained locally for debugging without being added
-to the page markup.
+overrides weaker signals; known-author or profile-location evidence can outweigh
+topic text. The final country, region, confidence, and reasons are retained
+locally for debugging without being added to the page markup.
+
+Selecting a region suppresses both accounts whose X metadata shows that broad
+region and exact countries assigned to it. For example, selecting South Asia
+suppresses both `Account based in: South Asia` and exact India detections.
 
 ## About the API access ("cookies")
 
@@ -58,8 +61,9 @@ to the page markup.
 
 ## If X changes their API
 
-- Primary endpoint is the `AboutAccountQuery` GraphQL call. The public profile
-  location is the fallback when X returns a broad region or no exact country.
+- Primary endpoint is the `AboutAccountQuery` GraphQL call. Broad regions are
+  retained directly; public profile location is the fallback when X returns no
+  usable account-country or region metadata.
 - Profile fallback first tries `/i/api/1.1/users/lookup.json`; if X removes it,
   the extension automatically falls back to `UserByScreenName`.
 - The GraphQL call self-heals when X adds new required feature flags (it parses the
@@ -71,7 +75,8 @@ to the page markup.
 
 ## Customizing
 
-- Add/edit countries: `countries.js` — `places` (profile-location matching),
+- Add/edit countries and region membership: `countries.js` — `REGION_DB`,
+  `places` (profile-location matching),
   `keywords` (tweet text), `handles` (known accounts), `langs`
 - Adjust scoring and ambiguity rules: `detection.js`
 - After editing files, hit the reload icon on `chrome://extensions` and refresh x.com
@@ -86,8 +91,8 @@ node tests/detection.test.js && node tests/account-location.test.js
 
 ## Limitations
 
-- X may return a broad region such as "South Asia" rather than a country;
-  regional results are deliberately ignored rather than guessed
+- X's region labels are broader than countries; selecting a region intentionally
+  suppresses every supported country assigned to that region
 - "Account based in" is X's estimate for the account, not a verified
   nationality or current physical residence
 - Profile-location fallback is user-written free text and may be empty or false

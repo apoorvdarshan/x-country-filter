@@ -9,7 +9,7 @@
     <img class="logo" src="icons/icon48.png" width="28" height="28" alt="">
     <div class="titles">
       <h1>Country Filter</h1>
-      <span class="sub">for X (Twitter)</span>
+      <span class="sub">countries + regions on X</span>
     </div>
     <label class="switch" title="Enable / disable">
       <input type="checkbox" id="enabled">
@@ -19,7 +19,24 @@
 
   <p id="summary" class="summary">&nbsp;</p>
 
-  <div id="countries" class="grid"></div>
+  <div class="filter-tabs" role="tablist" aria-label="Filter type">
+    <button id="regions-tab" class="filter-tab active" type="button" role="tab"
+      aria-selected="true" aria-controls="regions-panel" data-panel="regions">
+      Regions <span id="region-count" class="tab-count" hidden>0</span>
+    </button>
+    <button id="countries-tab" class="filter-tab" type="button" role="tab"
+      aria-selected="false" aria-controls="countries-panel" data-panel="countries">
+      Countries <span id="country-count" class="tab-count" hidden>0</span>
+    </button>
+  </div>
+
+  <section id="regions-panel" role="tabpanel" aria-labelledby="regions-tab">
+    <p class="panel-hint">Each region includes its listed countries.</p>
+    <div id="regions" class="grid"></div>
+  </section>
+  <section id="countries-panel" role="tabpanel" aria-labelledby="countries-tab" hidden>
+    <div id="countries" class="grid"></div>
+  </section>
 
   <footer>
     <span id="status" class="status">Saved<span class="tick"></span></span>

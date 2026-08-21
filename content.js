@@ -4,8 +4,14 @@
 (() => {
   "use strict";
 
-  const DEFAULTS = { enabled: true, hidden: [] };
-  const { detectCountry, getTweetData, normalizeSettings } = XCF_DETECTION;
+  const DEFAULTS = { enabled: true, hidden: [], hiddenRegions: [] };
+  const {
+    detectCountry,
+    getTweetData,
+    isBlockedLocation,
+    normalizeSettings,
+    regionForCountry
+  } = XCF_DETECTION;
 
   let settings = normalizeSettings(DEFAULTS);
   let accountLocations = null;
@@ -39,7 +45,7 @@
   function applyToArticle(article) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
     clearDetectionData(cell);
-    if (!settings.enabled || settings.hidden.length === 0) return;
+    if (!settings.enabled || (settings.hidden.length === 0 && settings.hiddenRegions.length === 0)) return;
 
     const data = getTweetData(article);
     const cached = data.handle && accountLocations
@@ -49,22 +55,28 @@
       accountLocations.enqueue(data.handle);
     }
 
-    const accountMatch = cached && cached.source === "account";
-    const profileMatch = cached && cached.source === "profile";
     const detection = detectCountry({
       ...data,
-      accountCountry: accountMatch ? cached.cc : null,
-      accountReason: accountMatch
+      accountCountry: cached && cached.accountCountry,
+      accountReason: cached && cached.accountCountry
         ? "X account based in: " + cached.basedIn
         : null,
-      locationCountry: profileMatch ? cached.cc : null,
-      locationReason: profileMatch && cached.matchedPlace
+      locationCountry: cached && cached.profileCountry,
+      locationReason: cached && cached.profileCountry && cached.matchedPlace
         ? "profile location: " + cached.matchedPlace
         : "profile location"
     });
 
-    detectionState.set(cell, detection);
-    if (detection.country && settings.hidden.includes(detection.country)) {
+    const region = cached && cached.accountRegion || regionForCountry(detection.country);
+    const result = {
+      ...detection,
+      region,
+      regionReason: cached && cached.accountRegion
+        ? "X account based in: " + cached.basedIn
+        : region ? "country belongs to region" : null
+    };
+    detectionState.set(cell, result);
+    if (isBlockedLocation(detection.country, region, settings)) {
       cell.classList.add("xcf-hidden");
     }
   }
@@ -103,7 +115,8 @@
   chrome.storage.sync.get(DEFAULTS, value => {
     settings = normalizeSettings(value);
     accountLocations = XCF_ACCOUNT_LOCATION.create({
-      shouldLookup: () => settings.enabled && settings.hidden.length > 0,
+      shouldLookup: () => settings.enabled &&
+        (settings.hidden.length > 0 || settings.hiddenRegions.length > 0),
       onUpdate: scanAll
     });
     accountLocations.start();

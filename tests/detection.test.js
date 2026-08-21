@@ -78,7 +78,7 @@ expectCountry(
 
 assert.deepEqual(
   JSON.parse(JSON.stringify(detection.resolveAccountBasedIn(" India "))),
-  { country: "IN", matchedPlace: "India" }
+  { country: "IN", region: "SOUTH_ASIA", matchedPlace: "India" }
 );
 assert.equal(detection.resolveAccountBasedIn("United Arab Emirates").country, "AE");
 assert.equal(detection.resolveAccountBasedIn("U.S.A.").country, "US");
@@ -87,6 +87,11 @@ assert.equal(
   null,
   "broad X regions must not be guessed as a country"
 );
+assert.equal(detection.resolveAccountBasedIn("South Asia").region, "SOUTH_ASIA");
+assert.equal(detection.resolveAccountBasedIn("Western Europe").region, "EUROPE");
+assert.equal(detection.resolveAccountBasedIn("Mars").region, null);
+assert.equal(detection.regionForCountry("IN"), "SOUTH_ASIA");
+assert.equal(detection.regionForCountry("JP"), "EAST_ASIA");
 
 assert.equal(detection.extractAccountBasedIn({
   data: {
@@ -130,11 +135,24 @@ assert.deepEqual(
 assert.deepEqual(
   JSON.parse(JSON.stringify(detection.normalizeSettings({
     enabled: "yes",
-    hidden: ["IN", "IN", "XX", null]
+    hidden: ["IN", "IN", "XX", null],
+    hiddenRegions: ["SOUTH_ASIA", "SOUTH_ASIA", "ATLANTIS"]
   }))),
-  { enabled: true, hidden: ["IN"] },
+  { enabled: true, hidden: ["IN"], hiddenRegions: ["SOUTH_ASIA"] },
   "invalid or deleted synchronized settings must fall back safely"
 );
+
+const regionSettings = detection.normalizeSettings({
+  hidden: [],
+  hiddenRegions: ["SOUTH_ASIA"]
+});
+assert.equal(
+  detection.isBlockedLocation("IN", "SOUTH_ASIA", regionSettings),
+  true,
+  "a selected region must suppress exact member countries"
+);
+assert.equal(detection.isBlockedLocation(null, "SOUTH_ASIA", regionSettings), true);
+assert.equal(detection.isBlockedLocation("JP", "EAST_ASIA", regionSettings), false);
 
 assert.equal(
   fs.readFileSync("detection.js", "utf8"),

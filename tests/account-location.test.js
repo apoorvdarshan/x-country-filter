@@ -29,7 +29,9 @@ async function run() {
       requests.push(String(url));
       if (String(url).includes("AboutAccountQuery")) {
         const variables = JSON.parse(new URL("https://x.com" + url).searchParams.get("variables"));
-        const basedIn = variables.screenName === "regional" ? "South Asia" : "India";
+        const basedIn = variables.screenName === "regional"
+          ? "South Asia"
+          : variables.screenName === "profileonly" ? "" : "India";
         return response({
           data: {
             user_result_by_screen_name: {
@@ -39,7 +41,7 @@ async function run() {
         });
       }
       if (String(url).includes("users/lookup.json")) {
-        return response([{ screen_name: "regional", location: "Bengaluru, India" }]);
+        return response([{ screen_name: "profileonly", location: "Bengaluru, India" }]);
       }
       throw new Error("Unexpected request: " + url);
     },
@@ -69,15 +71,26 @@ async function run() {
   assert.equal(lookup.get("XLKHARR").cc, "IN");
   assert.equal(lookup.get("xlkharr").source, "account");
   assert.equal(lookup.get("xlkharr").basedIn, "India");
+  assert.equal(lookup.get("xlkharr").accountCountry, "IN");
+  assert.equal(lookup.get("xlkharr").accountRegion, "SOUTH_ASIA");
   assert.equal(requests.length, 1, "an exact account country must not need profile fallback");
 
   lookup.enqueue("regional");
   await lookup.pump();
-  assert.equal(lookup.get("regional").cc, "IN");
-  assert.equal(lookup.get("regional").source, "profile");
+  assert.equal(lookup.get("regional").cc, null);
+  assert.equal(lookup.get("regional").source, "region");
   assert.equal(lookup.get("regional").basedIn, "South Asia");
+  assert.equal(lookup.get("regional").accountCountry, null);
+  assert.equal(lookup.get("regional").accountRegion, "SOUTH_ASIA");
+  assert.equal(lookup.get("regional").profileCountry, null);
+
+  lookup.enqueue("profileonly");
+  await lookup.pump();
+  assert.equal(lookup.get("profileonly").cc, "IN");
+  assert.equal(lookup.get("profileonly").source, "profile");
+  assert.equal(lookup.get("profileonly").profileCountry, "IN");
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
-  assert.ok(stored.some(value => value.xcfLocCache.version === 3));
+  assert.ok(stored.some(value => value.xcfLocCache.version === 4));
   assert.ok(updates >= 3, "cache loads and completed lookups must trigger rescans");
 
   console.log("Account-location tests passed");

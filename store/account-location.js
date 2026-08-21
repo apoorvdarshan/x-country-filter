@@ -19,7 +19,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   const PROFILE_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
 
   const CACHE_KEY = "xcfLocCache";
-  const CACHE_VERSION = 3;
+  const CACHE_VERSION = 4;
   const CACHE_TTL = 24 * 3600 * 1000;
   const CACHE_MAX = 5000;
   const PUMP_INTERVAL = 2500;
@@ -67,12 +67,17 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       const profile = account.country
         ? { country: null, matchedPlace: null }
         : resolveLocationToCountry(profileLocation);
-      const source = account.country ? "account" : profile.country ? "profile" : null;
+      const source = account.country
+        ? "account"
+        : account.region ? "region" : profile.country ? "profile" : null;
       cache.set(handle, {
         basedIn,
         profileLocation,
+        accountCountry: account.country,
+        accountRegion: account.region,
+        profileCountry: profile.country,
         cc: account.country || profile.country,
-        matchedPlace: account.matchedPlace || profile.matchedPlace,
+        matchedPlace: profile.matchedPlace,
         source,
         ts: Date.now()
       });
@@ -193,7 +198,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       if (about.retry) return false;
 
       const account = resolveAccountBasedIn(about.value);
-      if (account.country) {
+      if (account.country || account.region) {
         setCached(handle, { basedIn: about.value });
         return true;
       }

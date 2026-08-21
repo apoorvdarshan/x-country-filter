@@ -3,14 +3,14 @@
 **Last updated: August 21, 2026**
 
 Country Filter for X ("the extension") is a browser extension that hides posts
-on x.com, including X Pro at pro.x.com, from countries the user selects.
+on x.com, including X Pro at pro.x.com, from countries or regions the user selects.
 
 ## Data collection
 
 **The extension sends no data to the developer and uses no developer-controlled
 server. It does not sell or share data with outside services.**
 
-- Your settings (on/off state and selected countries) are stored using Chrome's
+- Your settings (on/off state and selected countries or regions) are stored using Chrome's
   built-in extension storage (`chrome.storage`), which stays in your browser
   and your Chrome profile sync — the developer has no access to it.
 - To identify an account's country, the extension sends that public account

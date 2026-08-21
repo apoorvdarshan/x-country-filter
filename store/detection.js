@@ -22,6 +22,9 @@ globalThis.XCF_DETECTION = (() => {
   const handleCountries = new Map();
   const languageCountries = new Map();
   const accountCountryLabels = new Map();
+  const accountRegionLabels = new Map();
+  const countryRegions = new Map();
+  const REGION_CODES = new Set(Object.keys(REGION_DB));
 
   for (const [country, data] of Object.entries(COUNTRY_DB)) {
     keywordRegexes.set(country, data.keywords.map(keyword => [keyword, wordRegex(keyword)]));
@@ -50,6 +53,13 @@ globalThis.XCF_DETECTION = (() => {
   for (const [label, country] of Object.entries(ACCOUNT_COUNTRY_ALIASES)) {
     accountCountryLabels.set(normalizeCountryLabel(label), country);
   }
+  for (const [region, data] of Object.entries(REGION_DB)) {
+    accountRegionLabels.set(normalizeCountryLabel(data.name), region);
+    for (const label of data.labels) {
+      accountRegionLabels.set(normalizeCountryLabel(label), region);
+    }
+    for (const country of data.countries) countryRegions.set(country, region);
+  }
 
   const US_STATE_RE = /(?:,\s*|\s)(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\s*$/i;
 
@@ -58,8 +68,10 @@ globalThis.XCF_DETECTION = (() => {
       .normalize("NFKC")
       .trim()
       .toLowerCase()
-      .replace(/[.]/g, "")
-      .replace(/\s+/g, " ");
+      .replace(/&/g, " and ")
+      .replace(/[._-]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function handleFromHref(href) {
@@ -126,15 +138,23 @@ globalThis.XCF_DETECTION = (() => {
     return { country: bestCountry, matchedPlace: bestPlace };
   }
 
-  // `account_based_in` can also contain a broad region such as "South Asia".
-  // Only exact country labels are accepted so a regional result never blocks
-  // several countries by guesswork.
+  // `account_based_in` can contain either a country or a broad region. Keep the
+  // two separate so a country filter never guesses from a regional label.
   function resolveAccountBasedIn(value) {
     const label = normalizeCountryLabel(value);
+    const country = accountCountryLabels.get(label) || null;
+    const region = country
+      ? countryRegions.get(country) || null
+      : accountRegionLabels.get(label) || null;
     return {
-      country: accountCountryLabels.get(label) || null,
-      matchedPlace: accountCountryLabels.has(label) ? String(value).trim() : null
+      country,
+      region,
+      matchedPlace: country || region ? String(value).trim() : null
     };
+  }
+
+  function regionForCountry(country) {
+    return countryRegions.get(country) || null;
   }
 
   function extractAccountBasedIn(payload) {
@@ -228,10 +248,21 @@ globalThis.XCF_DETECTION = (() => {
     const hidden = Array.isArray(source.hidden)
       ? [...new Set(source.hidden.filter(country => COUNTRY_CODES.has(country)))]
       : [];
+    const hiddenRegions = Array.isArray(source.hiddenRegions)
+      ? [...new Set(source.hiddenRegions.filter(region => REGION_CODES.has(region)))]
+      : [];
     return {
       enabled: typeof source.enabled === "boolean" ? source.enabled : true,
-      hidden
+      hidden,
+      hiddenRegions
     };
+  }
+
+  function isBlockedLocation(country, region, settings) {
+    return Boolean(
+      (country && settings.hidden.includes(country)) ||
+      (region && settings.hiddenRegions.includes(region))
+    );
   }
 
   return {
@@ -240,7 +271,9 @@ globalThis.XCF_DETECTION = (() => {
     extractAccountBasedIn,
     getTweetData,
     handleFromHref,
+    isBlockedLocation,
     normalizeSettings,
+    regionForCountry,
     resolveAccountBasedIn,
     resolveLocationToCountry
   };

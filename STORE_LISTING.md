@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.2.0.zip`
+Upload: `dist/country-filter-for-x-1.3.0.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.2.0.zip \
+cd store && zip -qr ../dist/country-filter-for-x-1.3.0.zip \
   manifest.json detection.js account-location.js content.js content.css countries.js \
   popup.html popup.js popup.css icons -x '.*'
 ```
@@ -40,9 +40,9 @@ Fields on the Package tab that need no action:
 ```
 1. Load the extension and open https://x.com or https://pro.x.com (a logged-in account shows more posts, but public pages work too).
 2. Click the extension icon in the toolbar.
-3. Check any country (e.g. India) — posts detected as being from it disappear from the feed immediately.
+3. On the Regions tab, check South Asia — accounts labeled South Asia and exact member-country detections disappear. On the Countries tab, check India to suppress India alone.
 4. Uncheck it — the posts reappear. The header toggle disables the whole filter.
-5. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Broad regions, weak evidence, and conflicting evidence stay visible.
+5. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Weak and conflicting evidence stays visible.
 ```
 
 ---
@@ -58,27 +58,27 @@ Country Filter for X (Twitter)
 ### Summary (from package — edit in `store/manifest.json`, max 132 chars)
 
 ```
-Hide posts from countries you pick on X. A simple blocklist for your timeline, search, and reply threads.
+Hide posts from countries or regions you pick on X, including timelines, search, and reply threads.
 ```
 
 ### Description
 
 ```
-Hide posts from countries you pick — a simple blocklist for your X timeline.
+Hide posts from countries or regions you pick — a simple blocklist for your X timeline.
 
-Check a country in the popup and posts from it disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Everything else stays untouched.
+Choose a region or country in the popup and matching posts disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Selecting a region suppresses both broad X region labels and exact countries within that region.
 
 HOW IT WORKS
-The extension checks X's public "Account based in" metadata for post authors first. It then falls back to public profile location and signals already on the page — well-known accounts, country and city names in the post text, and the post's language. Broad regions such as "South Asia", a single keyword, and weak or conflicting evidence stay visible.
+The extension checks X's public "Account based in" metadata for post authors first. Both exact countries and broad regions such as "South Asia" are supported. It then falls back to public profile location and signals already on the page — well-known accounts, country and city names in the post text, and the post's language. A single keyword and weak or conflicting evidence stay visible.
 
 PRIVACY
 No analytics, no tracking, and no developer-controlled servers. Public author handles are sent only to X's own API through your existing X session; account-country results are cached locally for up to 24 hours. Your settings stay in your browser, and the extension only runs on x.com, pro.x.com, and twitter.com.
 
 FEATURES
-• 20 countries to choose from, one-click on/off
+• 10 regions and 20 countries to choose from, one-click on/off
 • Works on X and X Pro timelines, search, and reply threads
 • Confidence scoring reduces false positives
-• Live count of how many countries you're hiding
+• Live counts for selected regions and countries
 • "Uncheck all" to reset instantly
 • Open source: github.com/apoorvdarshan/x-country-filter
 ```
@@ -131,13 +131,13 @@ English
 ### Single purpose
 
 ```
-Hides posts on x.com, including X Pro at pro.x.com, from countries the user selects.
+Hides posts on x.com, including X Pro at pro.x.com, from countries or regions the user selects.
 ```
 
 ### Permission justification — `storage`
 
 ```
-Saves the user's settings: the on/off state and the list of countries they chose to hide. Synced via chrome.storage.sync so settings follow their Chrome profile.
+Saves the user's settings: the on/off state and the countries or regions they chose to hide. Synced via chrome.storage.sync so settings follow their Chrome profile.
 ```
 
 ### Permission justification — host permission (x.com, pro.x.com, twitter.com content scripts)

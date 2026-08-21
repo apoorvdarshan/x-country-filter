@@ -134,3 +134,49 @@ const COUNTRY_DB = {
     handles: ["techcabal"]
   }
 };
+
+
+// Regions intentionally match the broad labels X may expose in "About this
+// account". Selecting one also suppresses exact countries assigned to it.
+const REGION_DB = {
+  NORTH_AMERICA: {
+    name: "North America", mark: "NA", countries: ["US", "CA"],
+    labels: ["north america", "northern america"]
+  },
+  LATIN_AMERICA: {
+    name: "Latin America", mark: "LA", countries: ["MX", "BR"],
+    labels: ["latin america", "latin america and the caribbean", "south america", "central america", "caribbean"]
+  },
+  EUROPE: {
+    name: "Europe", mark: "EU", countries: ["GB", "DE", "FR", "NL", "ES", "RU"],
+    labels: ["europe", "northern europe", "western europe", "eastern europe", "southern europe"]
+  },
+  AFRICA: {
+    name: "Africa", mark: "AF", countries: ["NG"],
+    labels: ["africa", "north africa", "northern africa", "sub-saharan africa", "west africa", "western africa", "east africa", "eastern africa", "central africa", "middle africa", "southern africa"]
+  },
+  MIDDLE_EAST: {
+    name: "Middle East", mark: "ME", countries: ["IL", "AE"],
+    labels: ["middle east", "west asia", "western asia", "middle east and north africa", "mena"]
+  },
+  CENTRAL_ASIA: {
+    name: "Central Asia", mark: "CA", countries: [],
+    labels: ["central asia"]
+  },
+  SOUTH_ASIA: {
+    name: "South Asia", mark: "SA", countries: ["IN"],
+    labels: ["south asia", "southern asia"]
+  },
+  EAST_ASIA: {
+    name: "East Asia", mark: "EA", countries: ["JP", "CN", "KR"],
+    labels: ["east asia", "eastern asia"]
+  },
+  SOUTHEAST_ASIA: {
+    name: "Southeast Asia", mark: "SEA", countries: ["SG", "ID"],
+    labels: ["southeast asia", "south east asia", "south-eastern asia"]
+  },
+  OCEANIA: {
+    name: "Oceania", mark: "OC", countries: ["AU"],
+    labels: ["oceania", "australia and new zealand", "pacific"]
+  }
+};

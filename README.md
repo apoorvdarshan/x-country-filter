@@ -1,7 +1,19 @@
-# X Country Filter
+<p align="center">
+  <img src="store-assets/store-icon-128.png" width="128" height="128" alt="Country Filter for X logo">
+</p>
 
-[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-1d9bf0?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)
-[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-Upvote-DA552F?logo=producthunt&logoColor=white)](https://www.producthunt.com/products/country-filter-for-x-twitter/)
+<h1 align="center">Country Filter for X</h1>
+
+<p align="center">
+  <strong>Filter posts by country or region across X and X Pro.</strong>
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa"><img src="https://img.shields.io/badge/Chrome%20Web%20Store-Install-1d9bf0?logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store"></a>
+  <a href="https://www.producthunt.com/products/country-filter-for-x-twitter/"><img src="https://img.shields.io/badge/Product%20Hunt-Upvote-DA552F?logo=producthunt&logoColor=white" alt="Upvote on Product Hunt"></a>
+  <a href="https://github.com/apoorvdarshan/x-country-filter/stargazers"><img src="https://img.shields.io/github/stars/apoorvdarshan/x-country-filter?style=flat&logo=github&label=Stars" alt="GitHub stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT license"></a>
+</p>
 
 Chrome extension (Manifest V3) that hides posts from countries or regions you pick on
 **x.com**, including **X Pro** at **pro.x.com**.
@@ -22,6 +34,23 @@ Support the project: [star it on GitHub](https://github.com/apoorvdarshan/x-coun
 [report an issue](https://github.com/apoorvdarshan/x-country-filter/issues/new),
 [follow @apoorvdarshan on X](https://x.com/apoorvdarshan), or
 [vote on Product Hunt](https://www.producthunt.com/products/country-filter-for-x-twitter/).
+
+## See it in action
+
+<p align="center">
+  <img src="store-assets/screenshot-1-hero-1280x800.png" width="100%" alt="Country Filter for X hero showing country and region filtering">
+</p>
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="store-assets/screenshot-2-features-1280x800.png" width="100%" alt="Country Filter for X supports 249 countries, 10 regions, search, and username exceptions">
+    </td>
+    <td width="50%">
+      <img src="store-assets/screenshot-3-privacy-1280x800.png" width="100%" alt="Country Filter for X privacy features and X Pro support">
+    </td>
+  </tr>
+</table>
 
 ## Install
 

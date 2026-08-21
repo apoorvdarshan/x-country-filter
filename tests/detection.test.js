@@ -172,10 +172,34 @@ assert.deepEqual(
   JSON.parse(JSON.stringify(detection.normalizeSettings({
     enabled: "yes",
     hidden: ["IN", "IN", "XX", null],
-    hiddenRegions: ["SOUTH_ASIA", "SOUTH_ASIA", "ATLANTIS"]
+    hiddenRegions: ["SOUTH_ASIA", "SOUTH_ASIA", "ATLANTIS"],
+    exemptHandles: ["@Allowed_User", "https://x.com/allowed_user", "not valid!"],
+    protectFollowing: false
   }))),
-  { enabled: true, hidden: ["IN"], hiddenRegions: ["SOUTH_ASIA"] },
+  {
+    enabled: true,
+    hidden: ["IN"],
+    hiddenRegions: ["SOUTH_ASIA"],
+    exemptHandles: ["allowed_user"],
+    protectFollowing: false
+  },
   "invalid or deleted synchronized settings must fall back safely"
+);
+
+assert.equal(detection.normalizeHandle(" @OpenAI "), "openai");
+assert.equal(detection.normalizeHandle("https://twitter.com/OpenAI/status/123"), "openai");
+assert.equal(detection.normalizeHandle("not valid!"), null);
+
+const exceptionSettings = detection.normalizeSettings({
+  exemptHandles: ["always_show"],
+  protectFollowing: true
+});
+assert.equal(detection.exemptionReason("Always_Show", false, exceptionSettings), "username exception");
+assert.equal(detection.exemptionReason("someone_else", true, exceptionSettings), "account you follow");
+assert.equal(detection.exemptionReason("someone_else", false, exceptionSettings), null);
+assert.equal(
+  detection.exemptionReason("someone_else", true, { ...exceptionSettings, protectFollowing: false }),
+  null
 );
 
 assert.deepEqual(
@@ -230,7 +254,7 @@ for (const file of ["popup.html", "popup.css", "popup.js"]) {
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.4.0");
+  assert.equal(manifest.version, "1.5.0");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 
@@ -287,5 +311,114 @@ smokeContentScript(
   "store/account-location.js",
   "store/content.js"
 );
+
+function runContentScenario({
+  settings,
+  cached,
+  expectedHidden,
+  expectedReason = null,
+  expectedPending = false
+}) {
+  const classes = new Set();
+  const cell = {
+    classList: {
+      add: value => classes.add(value),
+      remove: value => classes.delete(value)
+    }
+  };
+  const article = {
+    isConnected: true,
+    closest: () => cell,
+    querySelectorAll: selector => selector.includes("/status/")
+      ? [{ getAttribute: () => "/test_author/status/123" }]
+      : [],
+    querySelector: selector => selector.includes("tweetText")
+      ? { textContent: "India Mumbai Delhi", getAttribute: () => "en" }
+      : null
+  };
+  const context = {
+    URL,
+    URLSearchParams,
+    clearInterval() {},
+    clearTimeout() {},
+    document: {
+      body: {},
+      cookie: "",
+      querySelectorAll: selector => selector.includes('article[data-testid="tweet"]')
+        ? [article]
+        : []
+    },
+    setInterval: () => 1,
+    setTimeout: () => 1,
+    MutationObserver: class { observe() {} disconnect() {} },
+    chrome: {
+      runtime: { id: "test-extension" },
+      storage: {
+        local: {
+          get: (_key, callback) => callback(cached ? {
+            xcfLocCache: {
+              version: 5,
+              entries: { test_author: { ...cached, ts: Date.now() } }
+            }
+          } : {}),
+          set() {}
+        },
+        sync: {
+          get: (defaults, callback) => callback({ ...defaults, ...settings }),
+          set() {}
+        },
+        onChanged: { addListener() {} }
+      }
+    }
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  for (const file of [
+    "country-catalog.js", "countries.js", "detection.js", "account-location.js", "content.js"
+  ]) {
+    vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
+  }
+
+  assert.equal(classes.has("xcf-hidden"), expectedHidden);
+  const state = context.XCF_DEBUG.get(cell);
+  assert.equal(state && state.exemptionReason || null, expectedReason);
+  assert.equal(Boolean(state && state.pendingRelationship), expectedPending);
+}
+
+runContentScenario({
+  settings: { hidden: ["IN"], exemptHandles: ["test_author"] },
+  expectedHidden: false,
+  expectedReason: "username exception"
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: true
+  },
+  expectedHidden: false,
+  expectedReason: "account you follow"
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: true
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  expectedHidden: false,
+  expectedPending: true
+});
 
 console.log("Detection tests passed");

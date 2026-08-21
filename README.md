@@ -8,6 +8,10 @@ Chrome extension (Manifest V3) that hides posts from countries or regions you pi
 Check a country or region in the popup → its posts disappear from your timeline, search, and
 reply threads. Everything else stays untouched.
 
+Need an override? Add an X username under **Exceptions**, or leave **Accounts
+you follow** enabled. Manual exceptions and followed accounts always remain
+visible even when their country or region is selected.
+
 The searchable catalog covers 249 countries and areas across 10 regions. Its
 geographic grouping is based on the [United Nations M49 standard](https://unstats.un.org/unsd/methodology/m49/overview/)
 and adapted to the extension's region labels, with Taiwan and Kosovo included
@@ -51,6 +55,11 @@ overrides weaker signals; known-author or profile-location evidence can outweigh
 topic text. The final country, region, confidence, and reasons are retained
 locally for debugging without being added to the page markup.
 
+Before a matching post is hidden, the extension checks two exemptions. A
+username saved in the popup wins immediately. When followed-account protection
+is enabled, the post remains visible while X's relationship result is pending
+and stays visible if you follow that author.
+
 Selecting a region suppresses both accounts whose X metadata shows that broad
 region and exact countries assigned to it. For example, selecting South Asia
 suppresses both `Account based in: South Asia` and exact India detections.
@@ -62,8 +71,9 @@ suppresses both `Account based in: South Asia` and exact India detections.
 - Two extra headers are needed: the public bearer token of X's own web client
   (a constant shipped in their JS bundle, identical for everyone — it identifies
   the app, not you) and `x-csrf-token`, which is just your `ct0` cookie value.
-- Lookups are throttled to two accounts per ~2.5 seconds and cached for 24
-  hours. On HTTP 429 the extension backs off for 2 minutes.
+- Country, profile-location, and whether-you-follow results are throttled to
+  two accounts per ~2.5 seconds and cached for 24 hours. On HTTP 429 the
+  extension backs off for 2 minutes.
 - Logged out? Lookups are skipped and the heuristic fallbacks still work.
 
 ## If X changes their API
@@ -72,7 +82,8 @@ suppresses both `Account based in: South Asia` and exact India detections.
   retained directly; public profile location is the fallback when X returns no
   usable account-country or region metadata.
 - Profile fallback first tries `/i/api/1.1/users/lookup.json`; if X removes it,
-  the extension automatically falls back to `UserByScreenName`.
+  the extension automatically falls back to `UserByScreenName`. These profile
+  responses also provide the followed-account exemption.
 - The GraphQL call self-heals when X adds new required feature flags (it parses the
   "features cannot be null" error and retries). If the **query id** itself expires
   (404), update the corresponding operation id in `account-location.js` from a
@@ -100,6 +111,8 @@ node tests/detection.test.js && node tests/account-location.test.js
 
 - X's region labels are broader than countries; selecting a region intentionally
   suppresses every country or area assigned to that region
+- Followed-account detection needs a logged-in X session and remains
+  best-effort if X changes its private relationship fields
 - "Account based in" is X's estimate for the account, not a verified
   nationality or current physical residence
 - Profile-location fallback is user-written free text and may be empty or false

@@ -4,9 +4,16 @@
 (() => {
   "use strict";
 
-  const DEFAULTS = { enabled: true, hidden: [], hiddenRegions: [] };
+  const DEFAULTS = {
+    enabled: true,
+    hidden: [],
+    hiddenRegions: [],
+    exemptHandles: [],
+    protectFollowing: true
+  };
   const {
     detectCountry,
+    exemptionReason,
     getTweetData,
     isBlockedLocation,
     normalizeSettings,
@@ -48,11 +55,53 @@
     if (!settings.enabled || (settings.hidden.length === 0 && settings.hiddenRegions.length === 0)) return;
 
     const data = getTweetData(article);
+    const manualExemption = exemptionReason(data.handle, false, settings);
+    if (manualExemption) {
+      detectionState.set(cell, {
+        country: null,
+        region: null,
+        confidence: 0,
+        reasons: [manualExemption],
+        ambiguous: false,
+        candidates: [],
+        exempt: true,
+        exemptionReason: manualExemption
+      });
+      return;
+    }
+
     const cached = data.handle && accountLocations
       ? accountLocations.get(data.handle)
       : null;
     if (data.handle && !cached && accountLocations) {
       accountLocations.enqueue(data.handle);
+    }
+    if (data.handle && !cached && settings.protectFollowing) {
+      detectionState.set(cell, {
+        country: null,
+        region: null,
+        confidence: 0,
+        reasons: ["checking whether you follow this account"],
+        ambiguous: false,
+        candidates: [],
+        pendingRelationship: true
+      });
+      return;
+    }
+
+    const followedExemption = exemptionReason(data.handle, cached && cached.following, settings);
+    if (followedExemption) {
+      detectionState.set(cell, {
+        country: cached && cached.cc,
+        region: cached && cached.accountRegion,
+        confidence: 0,
+        reasons: [followedExemption],
+        ambiguous: false,
+        candidates: [],
+        exempt: true,
+        exemptionReason: followedExemption
+      });
+      return;
     }
 
     const detection = detectCountry({

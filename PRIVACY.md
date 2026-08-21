@@ -10,16 +10,19 @@ on x.com, including X Pro at pro.x.com, from countries or regions the user selec
 **The extension sends no data to the developer and uses no developer-controlled
 server. It does not sell or share data with outside services.**
 
-- Your settings (on/off state and selected countries or regions) are stored using Chrome's
-  built-in extension storage (`chrome.storage`), which stays in your browser
-  and your Chrome profile sync — the developer has no access to it.
+- Your settings (on/off state, selected countries or regions, username
+  exceptions, and followed-account protection preference) are stored using
+  Chrome's built-in extension storage (`chrome.storage`), which stays in your
+  browser and your Chrome profile sync — the developer has no access to it.
 - To identify an account's country, the extension sends that public account
   handle directly to X's own API through your existing logged-in X session and
-  reads X's public "Account based in" or profile-location response. The request
-  is not sent anywhere else.
-- Account-country results are cached in `chrome.storage.local` for up to 24
-  hours. Detection also reads post text and language already displayed on the
-  page. All filtering and scoring happen locally in your browser.
+  reads X's public "Account based in" or profile-location response and whether
+  your logged-in account follows that author. The request is not sent anywhere
+  else.
+- Account-country and followed-account results are cached in
+  `chrome.storage.local` for up to 24 hours. Detection also reads post text and
+  language already displayed on the page. All filtering, exception checks, and
+  scoring happen locally in your browser.
 - The extension has no analytics, no tracking, no ads, and makes no network
   requests to any developer-controlled server. It cannot read your browsing
   history and only runs on x.com, pro.x.com, and twitter.com.

@@ -28,6 +28,10 @@
       aria-selected="false" aria-controls="countries-panel" data-panel="countries">
       Countries <span id="country-count" class="tab-count" hidden>0</span>
     </button>
+    <button id="exceptions-tab" class="filter-tab" type="button" role="tab"
+      aria-selected="false" aria-controls="exceptions-panel" data-panel="exceptions">
+      Exceptions <span id="exception-count" class="tab-count exception-count" hidden>0</span>
+    </button>
   </div>
 
   <section id="regions-panel" role="tabpanel" aria-labelledby="regions-tab">
@@ -42,6 +46,28 @@
     </label>
     <p id="country-empty" class="empty-state" hidden>No matching country or area.</p>
     <div id="countries" class="grid country-grid"></div>
+  </section>
+  <section id="exceptions-panel" role="tabpanel" aria-labelledby="exceptions-tab" hidden>
+    <p class="panel-hint">Exceptions always stay visible.</p>
+    <label id="following-rule" class="follow-rule">
+      <input id="protect-following" type="checkbox">
+      <span class="box"></span>
+      <span class="rule-copy">
+        <strong>Accounts you follow</strong>
+        <small>Keep followed accounts, whatever their location.</small>
+      </span>
+    </label>
+    <form id="exception-form" class="exception-form">
+      <label for="exception-input">Always show username</label>
+      <div class="username-entry">
+        <span aria-hidden="true">@</span>
+        <input id="exception-input" type="text" placeholder="username" maxlength="80"
+          autocomplete="off" autocapitalize="none" spellcheck="false">
+        <button type="submit">Add</button>
+      </div>
+      <p id="exception-error" class="field-error" role="alert" hidden></p>
+    </form>
+    <div id="exceptions" class="exception-list" aria-live="polite"></div>
   </section>
 
   <footer>

@@ -94,6 +94,13 @@ globalThis.XCF_DETECTION = (() => {
     }
   }
 
+  function normalizeHandle(value) {
+    let handle = String(value || "").trim();
+    handle = handle.replace(/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\//i, "");
+    handle = handle.replace(/^@/, "").split(/[/?#]/)[0];
+    return /^[A-Za-z0-9_]{1,15}$/.test(handle) ? handle.toLowerCase() : null;
+  }
+
   // The first status permalink belongs to the outer/original post. This avoids
   // accidentally classifying a quoted post and works with X Pro's absolute URLs.
   function getTweetData(article) {
@@ -256,11 +263,25 @@ globalThis.XCF_DETECTION = (() => {
     const hiddenRegions = Array.isArray(source.hiddenRegions)
       ? [...new Set(source.hiddenRegions.filter(region => REGION_CODES.has(region)))]
       : [];
+    const exemptHandles = Array.isArray(source.exemptHandles)
+      ? [...new Set(source.exemptHandles.map(normalizeHandle).filter(Boolean))].slice(0, 200)
+      : [];
     return {
       enabled: typeof source.enabled === "boolean" ? source.enabled : true,
       hidden,
-      hiddenRegions
+      hiddenRegions,
+      exemptHandles,
+      protectFollowing: typeof source.protectFollowing === "boolean"
+        ? source.protectFollowing
+        : true
     };
+  }
+
+  function exemptionReason(handle, following, settings) {
+    const normalized = normalizeHandle(handle);
+    if (normalized && settings.exemptHandles.includes(normalized)) return "username exception";
+    if (following === true && settings.protectFollowing) return "account you follow";
+    return null;
   }
 
   function isBlockedLocation(country, region, settings) {
@@ -277,6 +298,8 @@ globalThis.XCF_DETECTION = (() => {
     getTweetData,
     handleFromHref,
     isBlockedLocation,
+    exemptionReason,
+    normalizeHandle,
     normalizeSettings,
     regionForCountry,
     resolveAccountBasedIn,

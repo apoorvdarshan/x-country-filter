@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.4.0.zip`
+Upload: `dist/country-filter-for-x-1.5.0.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.4.0.zip \
+cd store && zip -qr ../dist/country-filter-for-x-1.5.0.zip \
   manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```
@@ -41,8 +41,9 @@ Fields on the Package tab that need no action:
 1. Load the extension and open https://x.com or https://pro.x.com (a logged-in account shows more posts, but public pages work too).
 2. Click the extension icon in the toolbar.
 3. On the Regions tab, check South Asia — accounts labeled South Asia and exact member-country detections disappear. On the Countries tab, search for India and check it to suppress India alone.
-4. Uncheck it — the posts reappear. The header toggle disables the whole filter.
-5. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Weak and conflicting evidence stays visible.
+4. On the Exceptions tab, add a username from that region. Its posts remain visible. Accounts followed by the logged-in user also remain visible while "Accounts you follow" is enabled.
+5. Remove the exception or uncheck the filter — the posts update. The header toggle disables the whole filter.
+6. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Weak and conflicting evidence stays visible.
 ```
 
 ---
@@ -69,13 +70,15 @@ Hide posts from countries or regions you pick — a simple blocklist for your X 
 Choose a region or search the complete country-and-area catalog in the popup, and matching posts disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Selecting a region suppresses both broad X region labels and exact countries within that region.
 
 HOW IT WORKS
-The extension checks X's public "Account based in" metadata for post authors first. Both exact countries and broad regions such as "South Asia" are supported. It then falls back to public profile location and signals already on the page — well-known accounts, country and city names in the post text, and the post's language. A single keyword and weak or conflicting evidence stay visible.
+The extension checks manual username exceptions and whether you follow an account before hiding it. It then uses X's public "Account based in" metadata for post authors. Both exact countries and broad regions such as "South Asia" are supported, with public profile location and conservative on-page signals as fallbacks. A single keyword and weak or conflicting evidence stay visible.
 
 PRIVACY
-No analytics, no tracking, and no developer-controlled servers. Public author handles are sent only to X's own API through your existing X session; account-country results are cached locally for up to 24 hours. Your settings stay in your browser, and the extension only runs on x.com, pro.x.com, and twitter.com.
+No analytics, no tracking, and no developer-controlled servers. Public author handles are sent only to X's own API through your existing X session; account-country and followed-account results are cached locally for up to 24 hours. Your settings stay in your browser, and the extension only runs on x.com, pro.x.com, and twitter.com.
 
 FEATURES
 • 10 regions and 249 countries and areas, with instant search
+• Username exceptions override every country and region filter
+• Accounts you follow remain visible automatically
 • Works on X and X Pro timelines, search, and reply threads
 • Confidence scoring reduces false positives
 • Live counts for selected regions and countries
@@ -137,13 +140,13 @@ Hides posts on x.com, including X Pro at pro.x.com, from countries or regions th
 ### Permission justification — `storage`
 
 ```
-Saves the user's settings: the on/off state and the countries or regions they chose to hide. Synced via chrome.storage.sync so settings follow their Chrome profile.
+Saves the user's settings: the on/off state, countries or regions chosen to hide, username exceptions, and the followed-account protection preference. Synced via chrome.storage.sync so settings follow their Chrome profile.
 ```
 
 ### Permission justification — host permission (x.com, pro.x.com, twitter.com content scripts)
 
 ```
-The extension needs to run on x.com, pro.x.com, and twitter.com to read post author handles, request those authors' public "Account based in" or profile-location metadata from X's own API, inspect displayed post text and language as fallback signals, and hide posts matching the user's blocked countries. It does not run anywhere else and sends nothing to a developer-controlled server.
+The extension needs to run on x.com, pro.x.com, and twitter.com to read post author handles, request those authors' public "Account based in," profile-location, and followed-account relationship metadata from X's own API, inspect displayed post text and language as fallback signals, and hide posts matching the user's filters unless an exception applies. It does not run anywhere else and sends nothing to a developer-controlled server.
 ```
 
 ### Are you using remote code?
@@ -155,15 +158,15 @@ Leave the justification box empty.
 ### Data usage
 
 "What user data do you plan to collect" — check **Website content** because the
-extension processes public X author handles and account-country/profile-location
-metadata. Leave the other categories unchecked; it does not collect the user's
+extension processes public X author handles, account-country/profile-location
+metadata, and whether the logged-in user follows an author. Leave the other categories unchecked; it does not collect the user's
 precise location, authentication information, browsing history, communications,
 or financial/health information.
 
 Website content use justification:
 
 ```
-Public X author handles are sent only to X's own API to retrieve public account-country or profile-location metadata needed to filter posts. Results are cached locally for up to 24 hours. Nothing is sent to the developer, used for analytics or advertising, sold, or shared with another service.
+Public X author handles are sent only to X's own API to retrieve public account-country, profile-location, and followed-account relationship metadata needed to filter posts and honor exceptions. Results are cached locally for up to 24 hours. Nothing is sent to the developer, used for analytics or advertising, sold, or shared with another service.
 ```
 
 Certify all three disclosures:

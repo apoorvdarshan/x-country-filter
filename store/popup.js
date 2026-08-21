@@ -1,11 +1,13 @@
 const DEFAULTS = {
   enabled: true,
   hidden: [],
-  hiddenRegions: []
+  hiddenRegions: [],
+  exemptHandles: [],
+  protectFollowing: true
 };
 
 const $ = id => document.getElementById(id);
-const { normalizeSettings } = XCF_DETECTION;
+const { normalizeHandle, normalizeSettings } = XCF_DETECTION;
 let settings = normalizeSettings(DEFAULTS);
 let statusTimer = null;
 let countryQuery = "";
@@ -30,6 +32,7 @@ function countLabel(count, singular, plural) {
 function refresh() {
   const countryCount = settings.hidden.length;
   const regionCount = settings.hiddenRegions.length;
+  const exceptionCount = settings.exemptHandles.length;
   const total = countryCount + regionCount;
   const summary = $("summary");
 
@@ -54,6 +57,10 @@ function refresh() {
     $(id).textContent = String(count);
     $(id).hidden = count === 0;
   }
+  $("exception-count").textContent = String(exceptionCount);
+  $("exception-count").hidden = exceptionCount === 0;
+  $("protect-following").checked = settings.protectFollowing;
+  $("following-rule").classList.toggle("on", settings.protectFollowing);
   $("clear").hidden = total === 0;
 }
 
@@ -117,6 +124,40 @@ function renderCountries() {
 function renderAll() {
   renderGrid("regions", REGION_DB, "hiddenRegions", "region-mark", item => item.mark);
   renderCountries();
+  renderExceptions();
+}
+
+function renderExceptions() {
+  const list = $("exceptions");
+  list.innerHTML = "";
+  if (settings.exemptHandles.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "exception-empty";
+    empty.textContent = "No username exceptions yet.";
+    list.appendChild(empty);
+    return;
+  }
+
+  [...settings.exemptHandles].sort().forEach(handle => {
+    const row = document.createElement("div");
+    row.className = "exception-row";
+
+    const name = document.createElement("span");
+    name.textContent = "@" + handle;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "exception-remove";
+    remove.setAttribute("aria-label", "Remove @" + handle);
+    remove.textContent = "×";
+    remove.addEventListener("click", () => {
+      save({ exemptHandles: settings.exemptHandles.filter(item => item !== handle) });
+      renderExceptions();
+    });
+
+    row.append(name, remove);
+    list.appendChild(row);
+  });
 }
 
 function showPanel(name) {
@@ -125,8 +166,9 @@ function showPanel(name) {
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", String(active));
   });
-  $("regions-panel").hidden = name !== "regions";
-  $("countries-panel").hidden = name !== "countries";
+  for (const panel of ["regions", "countries", "exceptions"]) {
+    $(panel + "-panel").hidden = name !== panel;
+  }
 }
 
 const tabs = [...document.querySelectorAll(".filter-tab")];
@@ -150,6 +192,43 @@ chrome.storage.sync.get(DEFAULTS, value => {
 });
 
 $("enabled").addEventListener("change", event => save({ enabled: event.target.checked }));
+
+$("protect-following").addEventListener("change", event => {
+  save({ protectFollowing: event.target.checked });
+});
+
+$("exception-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const input = $("exception-input");
+  const error = $("exception-error");
+  const handle = normalizeHandle(input.value);
+
+  if (!handle) {
+    error.textContent = "Enter a valid X username.";
+    error.hidden = false;
+    return;
+  }
+  if (settings.exemptHandles.includes(handle)) {
+    error.textContent = "@" + handle + " is already an exception.";
+    error.hidden = false;
+    return;
+  }
+  if (settings.exemptHandles.length >= 200) {
+    error.textContent = "You can save up to 200 username exceptions.";
+    error.hidden = false;
+    return;
+  }
+
+  error.hidden = true;
+  input.value = "";
+  save({ exemptHandles: [...settings.exemptHandles, handle] });
+  renderExceptions();
+  input.focus();
+});
+
+$("exception-input").addEventListener("input", () => {
+  $("exception-error").hidden = true;
+});
 
 $("country-search").addEventListener("input", event => {
   countryQuery = event.target.value;

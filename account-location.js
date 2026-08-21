@@ -19,7 +19,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   const PROFILE_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
 
   const CACHE_KEY = "xcfLocCache";
-  const CACHE_VERSION = 4;
+  const CACHE_VERSION = 5;
   const CACHE_TTL = 24 * 3600 * 1000;
   const CACHE_MAX = 5000;
   const PUMP_INTERVAL = 2500;
@@ -62,7 +62,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       queue.push(normalized);
     }
 
-    function setCached(handle, { basedIn = "", profileLocation = "" }) {
+    function setCached(handle, { basedIn = "", profileLocation = "", following = null }) {
       const account = resolveAccountBasedIn(basedIn);
       const profile = account.country
         ? { country: null, matchedPlace: null }
@@ -78,6 +78,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         profileCountry: profile.country,
         cc: account.country || profile.country,
         matchedPlace: profile.matchedPlace,
+        following: typeof following === "boolean" ? following : null,
         source,
         ts: Date.now()
       });
@@ -125,7 +126,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         `/i/api/1.1/users/lookup.json?screen_name=${encodeURIComponent(handle)}`,
         { headers: apiHeaders(csrf), credentials: "include" }
       );
-      if (response.status === 404 || response.status === 410) {
+      if ([400, 401, 403, 404, 410].includes(response.status)) {
         legacyEndpointDead = true;
         return null;
       }
@@ -139,7 +140,29 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       }
       const users = await response.json().catch(() => []);
       const user = Array.isArray(users) ? users[0] : null;
-      return { retry: false, value: user && typeof user.location === "string" ? user.location : "" };
+      return {
+        retry: false,
+        value: {
+          location: user && typeof user.location === "string" ? user.location : "",
+          following: user && typeof user.following === "boolean" ? user.following : null
+        }
+      };
+    }
+
+    function graphqlFollowing(result) {
+      const values = [
+        result && result.relationship_perspectives && result.relationship_perspectives.following,
+        result && result.legacy && result.legacy.following,
+        result && result.viewer_relationship && result.viewer_relationship.following
+      ];
+      const direct = values.find(value => typeof value === "boolean");
+      if (typeof direct === "boolean") return direct;
+
+      const statuses = [
+        result && result.connection_status,
+        result && result.legacy && result.legacy.connection_status
+      ].find(Array.isArray);
+      return statuses ? statuses.includes("following") : null;
     }
 
     async function lookupGraphqlProfile(handle, csrf, retried = false) {
@@ -168,7 +191,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       );
       if (response.status === 429) {
         setCooldown(response);
-        return { retry: true, value: "" };
+        return { retry: true, value: { location: "", following: null } };
       }
       const body = await response.json().catch(() => null);
       if (!response.ok) {
@@ -178,34 +201,53 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
           for (const feature of missing[1].split(",")) profileExtraFeatures[feature.trim()] = false;
           return lookupGraphqlProfile(handle, csrf, true);
         }
-        return { retry: false, value: "" };
+        return { retry: false, value: { location: "", following: null } };
       }
-      const result = body && body.data && body.data.user && body.data.user.result;
-      const value = result && (
+      const data = body && body.data;
+      const result = data && (
+        (data.user && data.user.result) ||
+        (data.user_result_by_screen_name && data.user_result_by_screen_name.result)
+      );
+      const location = result && (
         (result.legacy && result.legacy.location) ||
         (result.location && result.location.location)
       );
-      return { retry: false, value: typeof value === "string" ? value : "" };
+      return {
+        retry: false,
+        value: {
+          location: typeof location === "string" ? location : "",
+          following: graphqlFollowing(result)
+        }
+      };
     }
 
     async function lookupProfile(handle, csrf) {
       const legacy = await lookupLegacyProfile(handle, csrf);
-      return legacy === null ? lookupGraphqlProfile(handle, csrf) : legacy;
+      if (legacy === null) return lookupGraphqlProfile(handle, csrf);
+      if (legacy.retry || typeof legacy.value.following === "boolean") return legacy;
+
+      const graphql = await lookupGraphqlProfile(handle, csrf);
+      if (graphql.retry) return legacy;
+      return {
+        retry: false,
+        value: {
+          location: legacy.value.location || graphql.value.location,
+          following: graphql.value.following
+        }
+      };
     }
 
     async function processHandle(handle, csrf) {
       const about = await lookupAbout(handle, csrf);
       if (about.retry) return false;
 
-      const account = resolveAccountBasedIn(about.value);
-      if (account.country || account.region) {
-        setCached(handle, { basedIn: about.value });
-        return true;
-      }
-
       const profile = await lookupProfile(handle, csrf);
       if (profile.retry) return false;
-      setCached(handle, { basedIn: about.value, profileLocation: profile.value });
+      setCached(handle, {
+        basedIn: about.value,
+        profileLocation: profile.value.location,
+        following: profile.value.following
+      });
       return true;
     }
 

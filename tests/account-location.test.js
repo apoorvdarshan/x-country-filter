@@ -41,7 +41,25 @@ async function run() {
         });
       }
       if (String(url).includes("users/lookup.json")) {
-        return response([{ screen_name: "profileonly", location: "Bengaluru, India" }]);
+        const handle = new URL("https://x.com" + url).searchParams.get("screen_name");
+        if (handle === "graphqlfollow") return response({}, 404);
+        return response([{
+          screen_name: handle,
+          location: handle === "profileonly" ? "Bengaluru, India" : "",
+          following: handle === "xlkharr"
+        }]);
+      }
+      if (String(url).includes("UserByScreenName")) {
+        return response({
+          data: {
+            user: {
+              result: {
+                legacy: { location: "" },
+                relationship_perspectives: { following: true }
+              }
+            }
+          }
+        });
       }
       throw new Error("Unexpected request: " + url);
     },
@@ -73,7 +91,8 @@ async function run() {
   assert.equal(lookup.get("xlkharr").basedIn, "India");
   assert.equal(lookup.get("xlkharr").accountCountry, "IN");
   assert.equal(lookup.get("xlkharr").accountRegion, "SOUTH_ASIA");
-  assert.equal(requests.length, 1, "an exact account country must not need profile fallback");
+  assert.equal(lookup.get("xlkharr").following, true);
+  assert.equal(requests.length, 2, "country and following relationship require one request each");
 
   lookup.enqueue("regional");
   await lookup.pump();
@@ -83,15 +102,23 @@ async function run() {
   assert.equal(lookup.get("regional").accountCountry, null);
   assert.equal(lookup.get("regional").accountRegion, "SOUTH_ASIA");
   assert.equal(lookup.get("regional").profileCountry, null);
+  assert.equal(lookup.get("regional").following, false);
 
   lookup.enqueue("profileonly");
   await lookup.pump();
   assert.equal(lookup.get("profileonly").cc, "IN");
   assert.equal(lookup.get("profileonly").source, "profile");
   assert.equal(lookup.get("profileonly").profileCountry, "IN");
+  assert.equal(lookup.get("profileonly").following, false);
+
+  lookup.enqueue("graphqlfollow");
+  await lookup.pump();
+  assert.equal(lookup.get("graphqlfollow").following, true);
+  assert.ok(requests.some(url => url.includes("UserByScreenName")));
+
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
-  assert.ok(stored.some(value => value.xcfLocCache.version === 4));
-  assert.ok(updates >= 3, "cache loads and completed lookups must trigger rescans");
+  assert.ok(stored.some(value => value.xcfLocCache.version === 5));
+  assert.ok(updates >= 4, "cache loads and completed lookups must trigger rescans");
 
   console.log("Account-location tests passed");
 }

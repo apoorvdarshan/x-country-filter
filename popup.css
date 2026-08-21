@@ -431,6 +431,62 @@ label.on .region-mark {
 .cname { overflow: hidden; text-overflow: ellipsis; color: #c9cdd1; }
 label.on .cname { color: var(--text); font-weight: 600; }
 
+/* ---- project links ---- */
+
+.support-rail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--hairline);
+}
+
+.support-rail a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  height: 31px;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #aab2b9;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.16s, border-color 0.16s, background 0.16s, transform 0.16s;
+}
+.support-rail a:hover {
+  color: var(--text);
+  border-color: #3a4651;
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+.support-rail a:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.support-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: #27323c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+.star-icon { color: #f2cc60; }
+.issue-icon { color: #ff7a84; }
+.x-icon { background: #050505; color: #fff; }
+.ph-icon { background: #da552f; color: #fff; }
+
 /* ---- footer ---- */
 
 footer {

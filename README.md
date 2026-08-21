@@ -18,6 +18,11 @@ geographic grouping is based on the [United Nations M49 standard](https://unstat
 and adapted to the extension's region labels, with Taiwan and Kosovo included
 for labels commonly shown on X.
 
+Support the project: [star it on GitHub](https://github.com/apoorvdarshan/x-country-filter),
+[report an issue](https://github.com/apoorvdarshan/x-country-filter/issues/new),
+[follow @apoorvdarshan on X](https://x.com/apoorvdarshan), or
+[vote on Product Hunt](https://www.producthunt.com/products/country-filter-for-x-twitter/).
+
 ## Install
 
 **[Install from the Chrome Web Store →](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)**

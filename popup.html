@@ -49,14 +49,23 @@
   </section>
   <section id="exceptions-panel" role="tabpanel" aria-labelledby="exceptions-tab" hidden>
     <p class="panel-hint">Exceptions always stay visible.</p>
-    <label id="following-rule" class="follow-rule">
-      <input id="protect-following" type="checkbox">
-      <span class="box"></span>
-      <span class="rule-copy">
-        <strong>Accounts you follow</strong>
-        <small>Keep followed accounts, whatever their location.</small>
-      </span>
-    </label>
+    <div class="rule-stack">
+      <div class="follow-rule automatic-rule">
+        <span class="protected-mark" aria-hidden="true">✓</span>
+        <span class="rule-copy">
+          <strong>Your signed-in account</strong>
+          <small>Your own posts always stay visible.</small>
+        </span>
+      </div>
+      <label id="following-rule" class="follow-rule">
+        <input id="protect-following" type="checkbox">
+        <span class="box"></span>
+        <span class="rule-copy">
+          <strong>Accounts you follow</strong>
+          <small>Keep followed accounts, whatever their location.</small>
+        </span>
+      </label>
+    </div>
     <form id="exception-form" class="exception-form">
       <label for="exception-input">Always show username</label>
       <div class="username-entry">

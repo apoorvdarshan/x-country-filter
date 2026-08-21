@@ -132,6 +132,8 @@ h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 
 /* ---- exceptions ---- */
 
+.rule-stack { display: grid; gap: 6px; }
+
 .follow-rule {
   display: flex;
   align-items: center;
@@ -142,6 +144,24 @@ h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
   background: rgba(29, 155, 240, 0.04);
   cursor: pointer;
   transition: border-color 0.16s, background 0.16s;
+}
+.automatic-rule {
+  border-color: rgba(0, 186, 124, 0.32);
+  background: rgba(0, 186, 124, 0.06);
+  cursor: default;
+}
+.automatic-rule:hover { background: rgba(0, 186, 124, 0.06); }
+.protected-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: #00ba7c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
 }
 .follow-rule:hover { background: rgba(29, 155, 240, 0.08); }
 .follow-rule.on { border-color: rgba(29, 155, 240, 0.42); }

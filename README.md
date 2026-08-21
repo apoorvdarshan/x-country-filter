@@ -8,9 +8,10 @@ Chrome extension (Manifest V3) that hides posts from countries or regions you pi
 Check a country or region in the popup → its posts disappear from your timeline, search, and
 reply threads. Everything else stays untouched.
 
-Need an override? Add an X username under **Exceptions**, or leave **Accounts
-you follow** enabled. Manual exceptions and followed accounts always remain
-visible even when their country or region is selected.
+Need an override? Your signed-in account is always protected, so your own posts
+remain visible. You can also add X usernames under **Exceptions**, or leave
+**Accounts you follow** enabled. All three override every country and region
+filter.
 
 The searchable catalog covers 249 countries and areas across 10 regions. Its
 geographic grouping is based on the [United Nations M49 standard](https://unstats.un.org/unsd/methodology/m49/overview/)
@@ -55,10 +56,10 @@ overrides weaker signals; known-author or profile-location evidence can outweigh
 topic text. The final country, region, confidence, and reasons are retained
 locally for debugging without being added to the page markup.
 
-Before a matching post is hidden, the extension checks two exemptions. A
-username saved in the popup wins immediately. When followed-account protection
-is enabled, the post remains visible while X's relationship result is pending
-and stays visible if you follow that author.
+Before a matching post is hidden, the extension checks three exemptions. The
+signed-in username and any username saved in the popup win immediately. When
+followed-account protection is enabled, the post remains visible while X's
+relationship result is pending and stays visible if you follow that author.
 
 Selecting a region suppresses both accounts whose X metadata shows that broad
 region and exact countries assigned to it. For example, selecting South Asia
@@ -71,6 +72,8 @@ suppresses both `Account based in: South Asia` and exact India detections.
 - Two extra headers are needed: the public bearer token of X's own web client
   (a constant shipped in their JS bundle, identical for everyone — it identifies
   the app, not you) and `x-csrf-token`, which is just your `ct0` cookie value.
+- The signed-in username is read from X's own page or account-settings response.
+  It is used only to protect that account's posts and scope relationship caches.
 - Country, profile-location, and whether-you-follow results are throttled to
   two accounts per ~2.5 seconds and cached for 24 hours. On HTTP 429 the
   extension backs off for 2 minutes.

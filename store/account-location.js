@@ -6,6 +6,8 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
 
   const {
     extractAccountBasedIn,
+    handleFromHref,
+    normalizeHandle,
     resolveAccountBasedIn,
     resolveLocationToCountry
   } = XCF_DETECTION;
@@ -19,7 +21,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   const PROFILE_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
 
   const CACHE_KEY = "xcfLocCache";
-  const CACHE_VERSION = 5;
+  const CACHE_VERSION = 6;
   const CACHE_TTL = 24 * 3600 * 1000;
   const CACHE_MAX = 5000;
   const PUMP_INTERVAL = 2500;
@@ -36,6 +38,10 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     let persistTimer = null;
     let pumpTimer = null;
     let started = false;
+    let viewerHandle = null;
+    let viewerResolved = false;
+    let savedPayload = null;
+    let savedLoaded = false;
 
     function getCsrf() {
       const match = document.cookie.match(/(?:^|;\s*)ct0=([^;]+)/);
@@ -49,6 +55,92 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         "x-twitter-auth-type": "OAuth2Session",
         "x-twitter-active-user": "yes"
       };
+    }
+
+    function viewerFromPage() {
+      if (typeof document.querySelectorAll !== "function") return null;
+      const selectors = [
+        'a[data-testid="AppTabBar_Profile_Link"][href]',
+        '[data-testid="SideNav_AccountSwitcher_Button"] a[href]',
+        'a[aria-label="Profile"][href]'
+      ];
+      for (const selector of selectors) {
+        for (const link of document.querySelectorAll(selector)) {
+          const handle = handleFromHref(link.getAttribute("href"));
+          if (handle) return handle;
+        }
+      }
+      return null;
+    }
+
+    function loadSavedCache() {
+      if (savedLoaded || !viewerResolved) return;
+      savedLoaded = true;
+      if (!viewerHandle || !savedPayload || savedPayload.version !== CACHE_VERSION ||
+          savedPayload.viewer !== viewerHandle) return;
+
+      const now = Date.now();
+      for (const [handle, value] of Object.entries(savedPayload.entries || {})) {
+        if (value && Number.isFinite(value.ts) && now - value.ts < CACHE_TTL) {
+          cache.set(handle, value);
+        }
+      }
+    }
+
+    function adoptViewer(value) {
+      const normalized = normalizeHandle(value);
+      if (viewerResolved && normalized === viewerHandle) return;
+      if (viewerResolved && normalized !== viewerHandle) {
+        cache.clear();
+        queue = [];
+        queued.clear();
+        savedLoaded = false;
+      }
+      viewerHandle = normalized;
+      viewerResolved = true;
+      loadSavedCache();
+    }
+
+    async function resolveViewer() {
+      const pageHandle = viewerFromPage();
+      if (pageHandle) {
+        adoptViewer(pageHandle);
+        onUpdate();
+        pumpQueue();
+        return;
+      }
+
+      const csrf = getCsrf();
+      if (!csrf) {
+        adoptViewer(null);
+        onUpdate();
+        return;
+      }
+
+      let handle = null;
+      try {
+        const response = await fetch("/i/api/1.1/account/settings.json", {
+          headers: apiHeaders(csrf),
+          credentials: "include"
+        });
+        if (response.ok) {
+          const body = await response.json().catch(() => null);
+          handle = body && body.screen_name;
+        }
+      } catch { /* identity lookup is best-effort */ }
+      adoptViewer(handle);
+      onUpdate();
+      pumpQueue();
+    }
+
+    function getViewerHandle() {
+      const pageHandle = viewerFromPage();
+      if (pageHandle && pageHandle !== viewerHandle) adoptViewer(pageHandle);
+      return viewerHandle;
+    }
+
+    function viewerReady() {
+      return viewerResolved;
     }
 
     function get(handle) {
@@ -94,7 +186,11 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
           entries = entries.slice(0, CACHE_MAX);
           cache = new Map(entries);
         }
-        const payload = { version: CACHE_VERSION, entries: Object.fromEntries(entries) };
+        const payload = {
+          version: CACHE_VERSION,
+          viewer: viewerHandle,
+          entries: Object.fromEntries(entries)
+        };
         try { chrome.storage.local.set({ [CACHE_KEY]: payload }); } catch { /* extension was reloaded */ }
       }, 1500);
     }
@@ -253,6 +349,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
 
     async function pumpQueue() {
       if (!started || pumping || !queue.length || Date.now() < cooldownUntil) return;
+      if (!viewerResolved) return;
       if (!shouldLookup()) return;
       const csrf = getCsrf();
       if (!csrf) return;
@@ -280,18 +377,10 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     function start() {
       if (started) return;
       chrome.storage.local.get(CACHE_KEY, stored => {
-        const raw = stored[CACHE_KEY];
-        const saved = raw && raw.version === CACHE_VERSION ? raw.entries : {};
-        const now = Date.now();
-        for (const [handle, value] of Object.entries(saved || {})) {
-          if (value && Number.isFinite(value.ts) && now - value.ts < CACHE_TTL) {
-            cache.set(handle, value);
-          }
-        }
+        savedPayload = stored[CACHE_KEY] || null;
         started = true;
-        onUpdate();
         pumpTimer = setInterval(pumpQueue, PUMP_INTERVAL);
-        pumpQueue();
+        resolveViewer();
       });
     }
 
@@ -301,7 +390,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       clearTimeout(persistTimer);
     }
 
-    return { enqueue, get, pump: pumpQueue, start, stop };
+    return { enqueue, get, getViewerHandle, pump: pumpQueue, start, stop, viewerReady };
   }
 
   return { create };

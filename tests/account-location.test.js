@@ -19,7 +19,12 @@ async function run() {
     URLSearchParams,
     clearInterval() {},
     clearTimeout() {},
-    document: { cookie: "ct0=test-csrf" },
+    document: {
+      cookie: "ct0=test-csrf",
+      querySelectorAll: selector => selector.includes("Profile_Link")
+        ? [{ getAttribute: () => "/viewer_account" }]
+        : []
+    },
     setInterval: () => 1,
     setTimeout: callback => {
       callback();
@@ -83,6 +88,8 @@ async function run() {
     onUpdate: () => { updates += 1; }
   });
   lookup.start();
+  assert.equal(lookup.viewerReady(), true);
+  assert.equal(lookup.getViewerHandle(), "viewer_account");
 
   lookup.enqueue("xlkharr");
   await lookup.pump();
@@ -117,8 +124,47 @@ async function run() {
   assert.ok(requests.some(url => url.includes("UserByScreenName")));
 
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
-  assert.ok(stored.some(value => value.xcfLocCache.version === 5));
+  assert.ok(stored.some(value =>
+    value.xcfLocCache.version === 6 && value.xcfLocCache.viewer === "viewer_account"
+  ));
   assert.ok(updates >= 4, "cache loads and completed lookups must trigger rescans");
+
+  const fallbackRequests = [];
+  const fallbackContext = {
+    URL,
+    URLSearchParams,
+    clearInterval() {},
+    clearTimeout() {},
+    document: { cookie: "ct0=test-csrf", querySelectorAll: () => [] },
+    setInterval: () => 1,
+    setTimeout: () => 1,
+    fetch: async url => {
+      fallbackRequests.push(String(url));
+      return response({ screen_name: "Fallback_User" });
+    },
+    chrome: {
+      storage: {
+        local: {
+          get: (_key, callback) => callback({}),
+          set() {}
+        }
+      }
+    }
+  };
+  fallbackContext.globalThis = fallbackContext;
+  vm.createContext(fallbackContext);
+  for (const file of ["country-catalog.js", "countries.js", "detection.js", "account-location.js"]) {
+    vm.runInContext(fs.readFileSync(file, "utf8"), fallbackContext, { filename: file });
+  }
+  const fallbackLookup = fallbackContext.XCF_ACCOUNT_LOCATION.create({
+    shouldLookup: () => true,
+    onUpdate() {}
+  });
+  fallbackLookup.start();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(fallbackLookup.viewerReady(), true);
+  assert.equal(fallbackLookup.getViewerHandle(), "fallback_user");
+  assert.deepEqual(fallbackRequests, ["/i/api/1.1/account/settings.json"]);
 
   console.log("Account-location tests passed");
 }

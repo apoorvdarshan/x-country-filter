@@ -55,17 +55,30 @@
     if (!settings.enabled || (settings.hidden.length === 0 && settings.hiddenRegions.length === 0)) return;
 
     const data = getTweetData(article);
-    const manualExemption = exemptionReason(data.handle, false, settings);
-    if (manualExemption) {
+    const viewerHandle = accountLocations && accountLocations.getViewerHandle();
+    const immediateExemption = exemptionReason(data.handle, false, settings, viewerHandle);
+    if (immediateExemption) {
       detectionState.set(cell, {
         country: null,
         region: null,
         confidence: 0,
-        reasons: [manualExemption],
+        reasons: [immediateExemption],
         ambiguous: false,
         candidates: [],
         exempt: true,
-        exemptionReason: manualExemption
+        exemptionReason: immediateExemption
+      });
+      return;
+    }
+    if (data.handle && accountLocations && !accountLocations.viewerReady()) {
+      detectionState.set(cell, {
+        country: null,
+        region: null,
+        confidence: 0,
+        reasons: ["checking the signed-in account"],
+        ambiguous: false,
+        candidates: [],
+        pendingViewer: true
       });
       return;
     }
@@ -89,7 +102,12 @@
       return;
     }
 
-    const followedExemption = exemptionReason(data.handle, cached && cached.following, settings);
+    const followedExemption = exemptionReason(
+      data.handle,
+      cached && cached.following,
+      settings,
+      viewerHandle
+    );
     if (followedExemption) {
       detectionState.set(cell, {
         country: cached && cached.cc,

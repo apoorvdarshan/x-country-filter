@@ -277,8 +277,9 @@ globalThis.XCF_DETECTION = (() => {
     };
   }
 
-  function exemptionReason(handle, following, settings) {
+  function exemptionReason(handle, following, settings, viewerHandle = null) {
     const normalized = normalizeHandle(handle);
+    if (normalized && normalized === normalizeHandle(viewerHandle)) return "your signed-in account";
     if (normalized && settings.exemptHandles.includes(normalized)) return "username exception";
     if (following === true && settings.protectFollowing) return "account you follow";
     return null;

@@ -196,6 +196,10 @@ const exceptionSettings = detection.normalizeSettings({
 });
 assert.equal(detection.exemptionReason("Always_Show", false, exceptionSettings), "username exception");
 assert.equal(detection.exemptionReason("someone_else", true, exceptionSettings), "account you follow");
+assert.equal(
+  detection.exemptionReason("My_Account", false, exceptionSettings, "my_account"),
+  "your signed-in account"
+);
 assert.equal(detection.exemptionReason("someone_else", false, exceptionSettings), null);
 assert.equal(
   detection.exemptionReason("someone_else", true, { ...exceptionSettings, protectFollowing: false }),
@@ -254,7 +258,7 @@ for (const file of ["popup.html", "popup.css", "popup.js"]) {
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.5.0");
+  assert.equal(manifest.version, "1.6.0");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 
@@ -317,7 +321,8 @@ function runContentScenario({
   cached,
   expectedHidden,
   expectedReason = null,
-  expectedPending = false
+  expectedPending = false,
+  viewerHandle = null
 }) {
   const classes = new Set();
   const cell = {
@@ -344,9 +349,13 @@ function runContentScenario({
     document: {
       body: {},
       cookie: "",
-      querySelectorAll: selector => selector.includes('article[data-testid="tweet"]')
-        ? [article]
-        : []
+      querySelectorAll: selector => {
+        if (selector.includes('article[data-testid="tweet"]')) return [article];
+        if (viewerHandle && selector.includes("Profile_Link")) {
+          return [{ getAttribute: () => "/" + viewerHandle }];
+        }
+        return [];
+      }
     },
     setInterval: () => 1,
     setTimeout: () => 1,
@@ -357,7 +366,8 @@ function runContentScenario({
         local: {
           get: (_key, callback) => callback(cached ? {
             xcfLocCache: {
-              version: 5,
+              version: 6,
+              viewer: viewerHandle,
               entries: { test_author: { ...cached, ts: Date.now() } }
             }
           } : {}),
@@ -392,6 +402,7 @@ runContentScenario({
 });
 runContentScenario({
   settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
   cached: {
     basedIn: "India",
     accountCountry: "IN",
@@ -405,6 +416,7 @@ runContentScenario({
 });
 runContentScenario({
   settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
   cached: {
     basedIn: "India",
     accountCountry: "IN",
@@ -419,6 +431,12 @@ runContentScenario({
   settings: { hidden: ["IN"] },
   expectedHidden: false,
   expectedPending: true
+});
+runContentScenario({
+  settings: { hidden: ["IN"], protectFollowing: false },
+  viewerHandle: "test_author",
+  expectedHidden: false,
+  expectedReason: "your signed-in account"
 });
 
 console.log("Detection tests passed");

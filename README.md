@@ -74,6 +74,8 @@ suppresses both `Account based in: South Asia` and exact India detections.
   the app, not you) and `x-csrf-token`, which is just your `ct0` cookie value.
 - The signed-in username is read from X's own page or account-settings response.
   It is used only to protect that account's posts and scope relationship caches.
+- On X Pro, the Account menu identifies the signed-in username directly, and
+  authors in opened profile columns move to the front of the lookup queue.
 - Country, profile-location, and whether-you-follow results are throttled to
   two accounts per ~2.5 seconds and cached for 24 hours. On HTTP 429 the
   extension backs off for 2 minutes.

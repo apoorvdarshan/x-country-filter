@@ -21,8 +21,8 @@ async function run() {
     clearTimeout() {},
     document: {
       cookie: "ct0=test-csrf",
-      querySelectorAll: selector => selector.includes("Profile_Link")
-        ? [{ getAttribute: () => "/viewer_account" }]
+      querySelectorAll: selector => selector.includes("SideNav_AccountSwitcher_Button")
+        ? [{ textContent: "Apoorv@viewer_account", getAttribute: () => null }]
         : []
     },
     setInterval: () => 1,
@@ -123,11 +123,25 @@ async function run() {
   assert.equal(lookup.get("graphqlfollow").following, true);
   assert.ok(requests.some(url => url.includes("UserByScreenName")));
 
+  const priorityStart = requests.length;
+  lookup.enqueue("normal_one");
+  lookup.enqueue("normal_two");
+  lookup.enqueue("profile_author", true);
+  await lookup.pump();
+  const priorityAboutHandles = requests.slice(priorityStart)
+    .filter(url => url.includes("AboutAccountQuery"))
+    .map(url => JSON.parse(new URL("https://x.com" + url).searchParams.get("variables")).screenName);
+  assert.deepEqual(
+    priorityAboutHandles,
+    ["profile_author", "normal_one"],
+    "an opened profile author must move ahead of the multi-column lookup queue"
+  );
+
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
   assert.ok(stored.some(value =>
     value.xcfLocCache.version === 6 && value.xcfLocCache.viewer === "viewer_account"
   ));
-  assert.ok(updates >= 4, "cache loads and completed lookups must trigger rescans");
+  assert.ok(updates >= 5, "cache loads and completed lookups must trigger rescans");
 
   const fallbackRequests = [];
   const fallbackContext = {

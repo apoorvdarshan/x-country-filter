@@ -59,10 +59,18 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
 
     function viewerFromPage() {
       if (typeof document.querySelectorAll !== "function") return null;
+      const accountMenus = [
+        ...document.querySelectorAll('[data-testid="SideNav_AccountSwitcher_Button"]'),
+        ...document.querySelectorAll('button[aria-label="Account menu"]')
+      ];
+      for (const menu of accountMenus) {
+        const match = String(menu.textContent || "").match(/@([A-Za-z0-9_]{1,15})\b/);
+        const handle = match && normalizeHandle(match[1]);
+        if (handle) return handle;
+      }
+
       const selectors = [
-        'a[data-testid="AppTabBar_Profile_Link"][href]',
-        '[data-testid="SideNav_AccountSwitcher_Button"] a[href]',
-        'a[aria-label="Profile"][href]'
+        'a[data-testid="AppTabBar_Profile_Link"][href]'
       ];
       for (const selector of selectors) {
         for (const link of document.querySelectorAll(selector)) {
@@ -147,11 +155,19 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       return handle ? cache.get(handle.toLowerCase()) || null : null;
     }
 
-    function enqueue(handle) {
+    function enqueue(handle, priority = false) {
       const normalized = String(handle || "").toLowerCase();
-      if (!normalized || cache.has(normalized) || queued.has(normalized) || queue.length >= 500) return;
+      if (!normalized || cache.has(normalized)) return;
+      if (queued.has(normalized)) {
+        if (priority) {
+          queue = queue.filter(item => item !== normalized);
+          queue.unshift(normalized);
+        }
+        return;
+      }
+      if (queue.length >= 500) return;
       queued.add(normalized);
-      queue.push(normalized);
+      priority ? queue.unshift(normalized) : queue.push(normalized);
     }
 
     function setCached(handle, { basedIn = "", profileLocation = "", following = null }) {
@@ -348,7 +364,13 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     }
 
     async function pumpQueue() {
-      if (!started || pumping || !queue.length || Date.now() < cooldownUntil) return;
+      if (!started || pumping || Date.now() < cooldownUntil) return;
+      const pageHandle = viewerFromPage();
+      if (pageHandle && pageHandle !== viewerHandle) {
+        adoptViewer(pageHandle);
+        onUpdate();
+      }
+      if (!queue.length) return;
       if (!viewerResolved) return;
       if (!shouldLookup()) return;
       const csrf = getCsrf();

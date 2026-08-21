@@ -49,6 +49,14 @@
     detectionState.delete(cell);
   }
 
+  function isProfileTimeline(article) {
+    const timeline = article.closest('[aria-label^="Timeline:"]');
+    const label = timeline && typeof timeline.getAttribute === "function"
+      ? timeline.getAttribute("aria-label") || ""
+      : "";
+    return /['’]s posts$/i.test(label);
+  }
+
   function applyToArticle(article) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
     clearDetectionData(cell);
@@ -87,7 +95,7 @@
       ? accountLocations.get(data.handle)
       : null;
     if (data.handle && !cached && accountLocations) {
-      accountLocations.enqueue(data.handle);
+      accountLocations.enqueue(data.handle, isProfileTimeline(article));
     }
     if (data.handle && !cached && settings.protectFollowing) {
       detectionState.set(cell, {

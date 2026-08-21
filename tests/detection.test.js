@@ -258,7 +258,7 @@ for (const file of ["popup.html", "popup.css", "popup.js"]) {
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.0");
+  assert.equal(manifest.version, "1.6.1");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 
@@ -351,8 +351,8 @@ function runContentScenario({
       cookie: "",
       querySelectorAll: selector => {
         if (selector.includes('article[data-testid="tweet"]')) return [article];
-        if (viewerHandle && selector.includes("Profile_Link")) {
-          return [{ getAttribute: () => "/" + viewerHandle }];
+        if (viewerHandle && selector.includes("SideNav_AccountSwitcher_Button")) {
+          return [{ textContent: "Viewer@" + viewerHandle, getAttribute: () => null }];
         }
         return [];
       }

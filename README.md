@@ -120,6 +120,9 @@ suppresses both `Account based in: South Asia` and exact India detections.
   account-country results are cached for up to 24 hours, profile-only results
   for 6 hours, and empty results for 10 minutes so transient misses recover
   quickly. On HTTP 429 the extension backs off for 2 minutes.
+- X rotates its private account-location operation ID. The extension tries
+  current fallbacks and reuses an `AboutAccountQuery` ID observed in X's own
+  loaded requests, without contacting a developer-controlled service.
 - Logged out? Lookups are skipped and the heuristic fallbacks still work.
 
 ## If X changes their API

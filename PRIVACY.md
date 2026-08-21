@@ -34,6 +34,10 @@ server. It does not sell or share data with outside services.**
 - The extension has no analytics, no tracking, no ads, and makes no network
   requests to any developer-controlled server. It cannot read your browsing
   history and only runs on x.com, pro.x.com, and twitter.com.
+- To remain compatible when X rotates its private operation identifiers, the
+  extension may read the URLs of resources already loaded by the current X tab
+  and reuse an observed `AboutAccountQuery` identifier. This stays in memory
+  and is not transmitted anywhere except back to X in the location request.
 
 ## Contact
 

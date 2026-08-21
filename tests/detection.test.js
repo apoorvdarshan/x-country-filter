@@ -136,6 +136,15 @@ assert.equal(detection.extractAccountBasedIn({
     }
   }
 }), "India");
+assert.equal(detection.extractAccountBasedIn({
+  data: {
+    user: {
+      result: {
+        aboutModule: { aboutProfile: { accountBasedIn: "South Asia" } }
+      }
+    }
+  }
+}), "South Asia", "alternate X response shapes must retain broad regions");
 assert.equal(detection.extractAccountBasedIn({ data: {} }), "");
 
 assert.deepEqual(
@@ -298,7 +307,7 @@ for (const url of [
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.5");
+  assert.equal(manifest.version, "1.6.6");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 
@@ -469,7 +478,7 @@ function runContentScenario({
         local: {
           get: (_key, callback) => callback(cached ? {
             xcfLocCache: {
-              version: 8,
+              version: 9,
               viewer: viewerHandle,
               entries: { test_author: { ...cached, ts: Date.now() } }
             }
@@ -526,6 +535,20 @@ runContentScenario({
     accountRegion: "SOUTH_ASIA",
     profileCountry: null,
     cc: "IN",
+    following: false
+  },
+  expectedHidden: true
+});
+runContentScenario({
+  settings: { hiddenRegions: ["SOUTH_ASIA"] },
+  viewerHandle: "viewer_account",
+  surface: "proForYou",
+  cached: {
+    basedIn: "South Asia",
+    accountCountry: null,
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: null,
     following: false
   },
   expectedHidden: true

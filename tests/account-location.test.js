@@ -25,6 +25,11 @@ async function run() {
         ? [{ textContent: "Apoorv@viewer_account", getAttribute: () => null }]
         : []
     },
+    performance: {
+      getEntriesByType: type => type === "resource"
+        ? [{ name: "https://pro.x.com/i/api/graphql/liveObserved123/AboutAccountQuery?variables=%7B%7D" }]
+        : []
+    },
     setInterval: () => 1,
     setTimeout: callback => {
       callback();
@@ -34,7 +39,7 @@ async function run() {
       requests.push(String(url));
       if (String(url).includes("AboutAccountQuery")) {
         const variables = JSON.parse(new URL("https://x.com" + url).searchParams.get("variables"));
-        if (variables.screenName === "rotated" && String(url).includes("XRqGa7EeokUU5kppkh13EA")) {
+        if (variables.screenName === "rotated" && String(url).includes("liveObserved123")) {
           return response({}, 404);
         }
         const basedIn = variables.screenName === "regional"
@@ -103,6 +108,10 @@ async function run() {
   assert.equal(lookup.get("xlkharr").accountRegion, "SOUTH_ASIA");
   assert.equal(lookup.get("xlkharr").following, true);
   assert.equal(requests.length, 2, "country and following relationship require one request each");
+  assert.ok(
+    requests[0].includes("liveObserved123"),
+    "an AboutAccountQuery operation observed from X's own requests must be preferred"
+  );
 
   const rotatedStart = requests.length;
   lookup.enqueue("rotated");
@@ -140,7 +149,7 @@ async function run() {
   assert.equal(lookup.get("visibleprofile").profileCountry, "IN");
   assert.equal(lookup.get("visibleprofile").following, false);
   assert.equal(lookup.mergeStored({
-    version: 8,
+    version: 9,
     viewer: "viewer_account",
     entries: {
       sharedprofile: {
@@ -159,7 +168,7 @@ async function run() {
   }), true);
   assert.equal(lookup.get("sharedprofile").accountCountry, "IN");
   assert.equal(lookup.mergeStored({
-    version: 8,
+    version: 9,
     viewer: "viewer_account",
     entries: {
       staleempty: {
@@ -194,7 +203,7 @@ async function run() {
 
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
   assert.ok(stored.some(value =>
-    value.xcfLocCache.version === 8 && value.xcfLocCache.viewer === "viewer_account"
+    value.xcfLocCache.version === 9 && value.xcfLocCache.viewer === "viewer_account"
   ));
   assert.ok(updates >= 5, "cache loads and completed lookups must trigger rescans");
 

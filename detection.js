@@ -196,11 +196,18 @@ globalThis.XCF_DETECTION = (() => {
   }
 
   function extractAccountBasedIn(payload) {
-    const value = payload && payload.data &&
-      payload.data.user_result_by_screen_name &&
-      payload.data.user_result_by_screen_name.result &&
-      payload.data.user_result_by_screen_name.result.about_profile &&
-      payload.data.user_result_by_screen_name.result.about_profile.account_based_in;
+    const data = payload && payload.data;
+    const result = data && (
+      (data.user_result_by_screen_name && data.user_result_by_screen_name.result) ||
+      (data.user_result && data.user_result.result) ||
+      (data.user && data.user.result)
+    );
+    const about = result && (
+      result.about_profile ||
+      result.aboutProfile ||
+      (result.aboutModule && (result.aboutModule.about_profile || result.aboutModule.aboutProfile))
+    );
+    const value = about && (about.account_based_in || about.accountBasedIn);
     return typeof value === "string" ? value.trim() : "";
   }
 

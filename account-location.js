@@ -20,6 +20,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   // accepted by the current X session. The normal profile-location lookup
   // remains as a fail-open fallback.
   const ABOUT_QUERY_IDS = [
+    "zs_jFPFT78rBpXv9Z3U2YQ",
     "XRqGa7EeokUU5kppkh13EA",
     "zUnx-DLN9dkwOkNhTLySjg",
     "TzOG2twZEfhr9KmClvVVqA"
@@ -27,7 +28,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   const PROFILE_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
 
   const CACHE_KEY = "xcfLocCache";
-  const CACHE_VERSION = 8;
+  const CACHE_VERSION = 9;
   const CACHE_TTL = 24 * 3600 * 1000;
   const PROFILE_CACHE_TTL = 6 * 3600 * 1000;
   const NEGATIVE_CACHE_TTL = 10 * 60 * 1000;
@@ -42,7 +43,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     let pumping = false;
     let cooldownUntil = 0;
     let legacyEndpointDead = false;
-    let preferredAboutQuery = 0;
+    let preferredAboutQueryId = null;
     const profileExtraFeatures = Object.create(null);
     let persistTimer = null;
     let pumpTimer = null;
@@ -74,6 +75,27 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         "x-twitter-auth-type": "OAuth2Session",
         "x-twitter-active-user": "yes"
       };
+    }
+
+    function observedAboutQueryIds() {
+      if (typeof performance === "undefined" ||
+          typeof performance.getEntriesByType !== "function") return [];
+      const ids = [];
+      for (const entry of performance.getEntriesByType("resource")) {
+        const match = String(entry && entry.name || "").match(
+          /\/i\/api\/graphql\/([A-Za-z0-9_-]{8,})\/AboutAccountQuery(?:[/?#]|$)/
+        );
+        if (match && !ids.includes(match[1])) ids.push(match[1]);
+      }
+      return ids;
+    }
+
+    function aboutQueryCandidates() {
+      return [...new Set([
+        preferredAboutQueryId,
+        ...observedAboutQueryIds(),
+        ...ABOUT_QUERY_IDS
+      ].filter(Boolean))];
     }
 
     function viewerFromPage() {
@@ -285,10 +307,9 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       const params = new URLSearchParams({
         variables: JSON.stringify({ screenName: handle })
       });
-      for (let offset = 0; offset < ABOUT_QUERY_IDS.length; offset += 1) {
-        const index = (preferredAboutQuery + offset) % ABOUT_QUERY_IDS.length;
+      for (const queryId of aboutQueryCandidates()) {
         const response = await fetch(
-          `/i/api/graphql/${ABOUT_QUERY_IDS[index]}/AboutAccountQuery?${params}`,
+          `/i/api/graphql/${queryId}/AboutAccountQuery?${params}`,
           { headers: apiHeaders(csrf), credentials: "include" }
         );
         if (response.status === 429) {
@@ -304,7 +325,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         }
         const body = await response.json().catch(() => null);
         if (body && Array.isArray(body.errors) && body.errors.length && !body.data) continue;
-        preferredAboutQuery = index;
+        preferredAboutQueryId = queryId;
         return { retry: false, value: extractAccountBasedIn(body) };
       }
       cooldownUntil = Date.now() + 30000;

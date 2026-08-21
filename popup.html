@@ -35,7 +35,13 @@
     <div id="regions" class="grid"></div>
   </section>
   <section id="countries-panel" role="tabpanel" aria-labelledby="countries-tab" hidden>
-    <div id="countries" class="grid"></div>
+    <label class="country-search">
+      <span class="search-icon" aria-hidden="true"></span>
+      <input id="country-search" type="search" placeholder="Search countries and areas"
+        aria-label="Search countries and areas" autocomplete="off" spellcheck="false">
+    </label>
+    <p id="country-empty" class="empty-state" hidden>No matching country or area.</p>
+    <div id="countries" class="grid country-grid"></div>
   </section>
 
   <footer>
@@ -43,6 +49,7 @@
     <button id="clear" class="clear" hidden>Uncheck all</button>
   </footer>
 
+  <script src="country-catalog.js"></script>
   <script src="countries.js"></script>
   <script src="detection.js"></script>
   <script src="popup.js"></script>

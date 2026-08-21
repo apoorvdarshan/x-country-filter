@@ -8,6 +8,7 @@ const $ = id => document.getElementById(id);
 const { normalizeSettings } = XCF_DETECTION;
 let settings = normalizeSettings(DEFAULTS);
 let statusTimer = null;
+let countryQuery = "";
 
 function save(patch) {
   settings = normalizeSettings({ ...settings, ...patch });
@@ -56,13 +57,18 @@ function refresh() {
   $("clear").hidden = total === 0;
 }
 
-function renderGrid(gridId, entries, settingKey, markerClass, markerText) {
+function renderGrid(gridId, entries, settingKey, markerClass, markerText, sortByName = false) {
   const grid = $(gridId);
   grid.innerHTML = "";
 
-  Object.entries(entries).forEach(([code, item], index) => {
+  const orderedEntries = Object.entries(entries);
+  if (sortByName) {
+    orderedEntries.sort(([, first], [, second]) => first.name.localeCompare(second.name));
+  }
+
+  orderedEntries.forEach(([code, item], index) => {
     const label = document.createElement("label");
-    label.style.animationDelay = (index * 14) + "ms";
+    label.style.animationDelay = Math.min(index * 12, 180) + "ms";
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
@@ -92,9 +98,25 @@ function renderGrid(gridId, entries, settingKey, markerClass, markerText) {
   });
 }
 
+function normalizeSearch(value) {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function renderCountries() {
+  const query = normalizeSearch(countryQuery.trim());
+  const entries = Object.fromEntries(Object.entries(COUNTRY_DB).filter(([code, item]) => {
+    if (!query) return true;
+    return [code, item.name, ...(item.aliases || [])]
+      .some(value => normalizeSearch(value).includes(query));
+  }));
+
+  renderGrid("countries", entries, "hidden", "flag", item => item.flag, true);
+  $("country-empty").hidden = Object.keys(entries).length !== 0;
+}
+
 function renderAll() {
   renderGrid("regions", REGION_DB, "hiddenRegions", "region-mark", item => item.mark);
-  renderGrid("countries", COUNTRY_DB, "hidden", "flag", item => item.flag);
+  renderCountries();
 }
 
 function showPanel(name) {
@@ -128,6 +150,11 @@ chrome.storage.sync.get(DEFAULTS, value => {
 });
 
 $("enabled").addEventListener("change", event => save({ enabled: event.target.checked }));
+
+$("country-search").addEventListener("input", event => {
+  countryQuery = event.target.value;
+  renderCountries();
+});
 
 $("clear").addEventListener("click", () => {
   save({ hidden: [], hiddenRegions: [] });

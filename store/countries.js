@@ -4,8 +4,9 @@
 //   name     - display name
 //   flag     - emoji shown in the popup
 //   langs    - BCP-47 lang codes X stamps on tweet text (div[data-testid="tweetText"][lang])
-//   places   - strings matched against the author's profile "location" field;
-//              this backs up X's dedicated account-based country metadata
+//   places   - strings matched against the author's profile "location" field
+//              (country names incl. native script, major cities, regions).
+//              This backs up X's dedicated account-based country metadata.
 //   keywords - words/phrases in the tweet text that contribute weak evidence
 //   handles  - well-known tech-news accounts from that country (lowercase, no @)
 //
@@ -135,6 +136,36 @@ const COUNTRY_DB = {
   }
 };
 
+function flagForCountry(code) {
+  return [...code].map(letter =>
+    String.fromCodePoint(0x1F1E6 + letter.charCodeAt(0) - 65)
+  ).join("");
+}
+
+// Keep the richer hand-authored signals above, then fill every remaining UN
+// M49 country/area with exact-name and alias support for X account metadata.
+for (const [code, catalog] of Object.entries(COUNTRY_CATALOG)) {
+  const aliases = [...new Set([
+    ...(catalog.name !== COUNTRY_DB[code]?.name ? [catalog.name] : []),
+    ...(COUNTRY_DB[code]?.aliases || []),
+    ...(catalog.aliases || [])
+  ])];
+  if (COUNTRY_DB[code]) {
+    COUNTRY_DB[code].aliases = aliases;
+    continue;
+  }
+  const terms = [catalog.name, ...aliases];
+  COUNTRY_DB[code] = {
+    name: catalog.name,
+    flag: flagForCountry(code),
+    langs: [],
+    places: terms,
+    keywords: terms,
+    handles: [],
+    aliases
+  };
+}
+
 
 // Regions intentionally match the broad labels X may expose in "About this
 // account". Selecting one also suppresses exact countries assigned to it.
@@ -180,3 +211,9 @@ const REGION_DB = {
     labels: ["oceania", "australia and new zealand", "pacific"]
   }
 };
+
+for (const [region, data] of Object.entries(REGION_DB)) {
+  data.countries = Object.entries(COUNTRY_CATALOG)
+    .filter(([, country]) => country.region === region)
+    .map(([code]) => code);
+}

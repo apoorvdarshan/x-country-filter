@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Country Filter for X (Twitter)",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Hide posts from countries or regions you pick on X, including timelines, search, and reply threads.",
   "permissions": ["storage"],
   "content_scripts": [
     {
       "matches": ["https://x.com/*", "https://pro.x.com/*", "https://twitter.com/*"],
-      "js": ["countries.js", "detection.js", "account-location.js", "content.js"],
+      "js": ["country-catalog.js", "countries.js", "detection.js", "account-location.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

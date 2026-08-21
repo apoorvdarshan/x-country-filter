@@ -36,6 +36,9 @@ globalThis.XCF_DETECTION = (() => {
       languageCountries.set(language, owners);
     }
     accountCountryLabels.set(normalizeCountryLabel(data.name), country);
+    for (const alias of data.aliases || []) {
+      accountCountryLabels.set(normalizeCountryLabel(alias), country);
+    }
   }
 
   // X normally returns a canonical country name, but a few labels differ from
@@ -65,10 +68,12 @@ globalThis.XCF_DETECTION = (() => {
 
   function normalizeCountryLabel(value) {
     return String(value || "")
-      .normalize("NFKC")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
       .trim()
       .toLowerCase()
       .replace(/&/g, " and ")
+      .replace(/['’`]/g, " ")
       .replace(/[._-]/g, " ")
       .replace(/\s+/g, " ")
       .trim();

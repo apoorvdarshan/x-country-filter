@@ -56,7 +56,7 @@ async function run() {
   };
   context.globalThis = context;
   vm.createContext(context);
-  for (const file of ["countries.js", "detection.js", "account-location.js"]) {
+  for (const file of ["country-catalog.js", "countries.js", "detection.js", "account-location.js"]) {
     vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
   }
 

@@ -2,16 +2,44 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 
-function loadDetection(countryFile = "countries.js", detectionFile = "detection.js") {
+function loadDetection(
+  catalogFile = "country-catalog.js",
+  countryFile = "countries.js",
+  detectionFile = "detection.js"
+) {
   const context = { URL };
   context.globalThis = context;
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(catalogFile, "utf8"), context, { filename: catalogFile });
   vm.runInContext(fs.readFileSync(countryFile, "utf8"), context, { filename: countryFile });
   vm.runInContext(fs.readFileSync(detectionFile, "utf8"), context, { filename: detectionFile });
   return context.XCF_DETECTION;
 }
 
 const detection = loadDetection();
+
+function loadCountryData(catalogFile = "country-catalog.js", countryFile = "countries.js") {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(catalogFile, "utf8"), context, { filename: catalogFile });
+  vm.runInContext(fs.readFileSync(countryFile, "utf8"), context, { filename: countryFile });
+  return vm.runInContext(
+    "({ catalog: COUNTRY_CATALOG, countries: COUNTRY_DB, regions: REGION_DB })",
+    context
+  );
+}
+
+const countryData = loadCountryData();
+assert.equal(Object.keys(countryData.catalog).length, 249, "the complete catalog must contain 249 entries");
+assert.equal(Object.keys(countryData.countries).length, 249, "every catalog entry must be selectable");
+const regionMembers = Object.values(countryData.regions).flatMap(region => region.countries);
+assert.equal(regionMembers.length, 249, "every country or area must belong to a region");
+assert.equal(new Set(regionMembers).size, 249, "no country or area may belong to multiple regions");
+assert.deepEqual(
+  [...new Set(regionMembers)].sort(),
+  Object.keys(countryData.catalog).sort(),
+  "region membership must exactly cover the catalog"
+);
 
 function expectCountry(input, expected, message) {
   assert.equal(detection.detectCountry(input).country, expected, message);
@@ -92,6 +120,14 @@ assert.equal(detection.resolveAccountBasedIn("Western Europe").region, "EUROPE")
 assert.equal(detection.resolveAccountBasedIn("Mars").region, null);
 assert.equal(detection.regionForCountry("IN"), "SOUTH_ASIA");
 assert.equal(detection.regionForCountry("JP"), "EAST_ASIA");
+assert.equal(detection.resolveAccountBasedIn("Pakistan").country, "PK");
+assert.equal(detection.resolveAccountBasedIn("Pakistan").region, "SOUTH_ASIA");
+assert.equal(detection.resolveAccountBasedIn("Turkey").country, "TR");
+assert.equal(detection.regionForCountry("KZ"), "CENTRAL_ASIA");
+assert.equal(detection.regionForCountry("NZ"), "OCEANIA");
+assert.equal(detection.resolveAccountBasedIn("Czech Republic").country, "CZ");
+assert.equal(detection.resolveAccountBasedIn("Côte d'Ivoire").country, "CI");
+assert.equal(detection.resolveAccountBasedIn("Taiwan").country, "TW");
 
 assert.equal(detection.extractAccountBasedIn({
   data: {
@@ -142,6 +178,12 @@ assert.deepEqual(
   "invalid or deleted synchronized settings must fall back safely"
 );
 
+assert.deepEqual(
+  JSON.parse(JSON.stringify(detection.normalizeSettings({ hidden: ["PK", "TW", "XK"] }))).hidden,
+  ["PK", "TW", "XK"],
+  "new catalog countries must be valid synchronized settings"
+);
+
 const regionSettings = detection.normalizeSettings({
   hidden: [],
   hiddenRegions: ["SOUTH_ASIA"]
@@ -154,6 +196,16 @@ assert.equal(
 assert.equal(detection.isBlockedLocation(null, "SOUTH_ASIA", regionSettings), true);
 assert.equal(detection.isBlockedLocation("JP", "EAST_ASIA", regionSettings), false);
 
+assert.equal(
+  fs.readFileSync("country-catalog.js", "utf8"),
+  fs.readFileSync("store/country-catalog.js", "utf8"),
+  "developer and store builds must share the complete country catalog"
+);
+assert.equal(
+  fs.readFileSync("countries.js", "utf8"),
+  fs.readFileSync("store/countries.js", "utf8"),
+  "developer and store builds must share identical country signals"
+);
 assert.equal(
   fs.readFileSync("detection.js", "utf8"),
   fs.readFileSync("store/detection.js", "utf8"),
@@ -169,8 +221,20 @@ assert.equal(
   fs.readFileSync("store/content.js", "utf8"),
   "developer and store builds must share identical content behavior"
 );
+for (const file of ["popup.html", "popup.css", "popup.js"]) {
+  assert.equal(
+    fs.readFileSync(file, "utf8"),
+    fs.readFileSync(`store/${file}`, "utf8"),
+    `developer and store builds must share identical ${file}`
+  );
+}
+for (const file of ["manifest.json", "store/manifest.json"]) {
+  const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(manifest.version, "1.4.0");
+  assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
+}
 
-function smokeContentScript(countryFile, detectionFile, accountFile, contentFile) {
+function smokeContentScript(catalogFile, countryFile, detectionFile, accountFile, contentFile) {
   const context = {
     URL,
     clearInterval() {},
@@ -203,14 +267,21 @@ function smokeContentScript(countryFile, detectionFile, accountFile, contentFile
   };
   context.globalThis = context;
   vm.createContext(context);
-  for (const file of [countryFile, detectionFile, accountFile, contentFile]) {
+  for (const file of [catalogFile, countryFile, detectionFile, accountFile, contentFile]) {
     vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
   }
   assert.equal(typeof context.XCF_DEBUG.get, "function", `${contentFile} must initialize`);
 }
 
-smokeContentScript("countries.js", "detection.js", "account-location.js", "content.js");
 smokeContentScript(
+  "country-catalog.js",
+  "countries.js",
+  "detection.js",
+  "account-location.js",
+  "content.js"
+);
+smokeContentScript(
+  "store/country-catalog.js",
   "store/countries.js",
   "store/detection.js",
   "store/account-location.js",

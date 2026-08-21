@@ -8,6 +8,11 @@ Chrome extension (Manifest V3) that hides posts from countries or regions you pi
 Check a country or region in the popup → its posts disappear from your timeline, search, and
 reply threads. Everything else stays untouched.
 
+The searchable catalog covers 249 countries and areas across 10 regions. Its
+geographic grouping is based on the [United Nations M49 standard](https://unstats.un.org/unsd/methodology/m49/overview/)
+and adapted to the extension's region labels, with Taiwan and Kosovo included
+for labels commonly shown on X.
+
 ## Install
 
 **[Install from the Chrome Web Store →](https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa)**
@@ -33,6 +38,8 @@ The extension combines independent signals into a confidence score:
    Asia" are recognized. Results are cached locally for up to 24 hours.
 2. **Author's public profile location** — used as a fallback and mapped from
    free text ("Bengaluru, India" → IN, "San Francisco, CA" → US, "東京" → JP).
+   Every catalog country supports exact names and common aliases; the original
+   hand-tuned countries also recognize major cities and native-script names.
 3. **Known accounts** — lists of well-known tech-news handles per country in `countries.js`
 4. **Keywords** — country/city/company names in the post text (word-boundary matched)
 5. **Post language** — scored only when the language maps to exactly one country
@@ -75,8 +82,8 @@ suppresses both `Account based in: South Asia` and exact India detections.
 
 ## Customizing
 
-- Add/edit countries and region membership: `countries.js` — `REGION_DB`,
-  `places` (profile-location matching),
+- Add/edit the complete country list and region membership: `country-catalog.js`
+- Add richer per-country signals: `countries.js` — `places` (profile-location matching),
   `keywords` (tweet text), `handles` (known accounts), `langs`
 - Adjust scoring and ambiguity rules: `detection.js`
 - After editing files, hit the reload icon on `chrome://extensions` and refresh x.com
@@ -92,7 +99,7 @@ node tests/detection.test.js && node tests/account-location.test.js
 ## Limitations
 
 - X's region labels are broader than countries; selecting a region intentionally
-  suppresses every supported country assigned to that region
+  suppresses every country or area assigned to that region
 - "Account based in" is X's estimate for the account, not a verified
   nationality or current physical residence
 - Profile-location fallback is user-written free text and may be empty or false

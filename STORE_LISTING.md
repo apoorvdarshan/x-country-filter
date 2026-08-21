@@ -11,14 +11,14 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.3.0.zip`
+Upload: `dist/country-filter-for-x-1.4.0.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.3.0.zip \
-  manifest.json detection.js account-location.js content.js content.css countries.js \
+cd store && zip -qr ../dist/country-filter-for-x-1.4.0.zip \
+  manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```
 
@@ -40,7 +40,7 @@ Fields on the Package tab that need no action:
 ```
 1. Load the extension and open https://x.com or https://pro.x.com (a logged-in account shows more posts, but public pages work too).
 2. Click the extension icon in the toolbar.
-3. On the Regions tab, check South Asia — accounts labeled South Asia and exact member-country detections disappear. On the Countries tab, check India to suppress India alone.
+3. On the Regions tab, check South Asia — accounts labeled South Asia and exact member-country detections disappear. On the Countries tab, search for India and check it to suppress India alone.
 4. Uncheck it — the posts reappear. The header toggle disables the whole filter.
 5. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Weak and conflicting evidence stays visible.
 ```
@@ -66,7 +66,7 @@ Hide posts from countries or regions you pick on X, including timelines, search,
 ```
 Hide posts from countries or regions you pick — a simple blocklist for your X timeline.
 
-Choose a region or country in the popup and matching posts disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Selecting a region suppresses both broad X region labels and exact countries within that region.
+Choose a region or search the complete country-and-area catalog in the popup, and matching posts disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Selecting a region suppresses both broad X region labels and exact countries within that region.
 
 HOW IT WORKS
 The extension checks X's public "Account based in" metadata for post authors first. Both exact countries and broad regions such as "South Asia" are supported. It then falls back to public profile location and signals already on the page — well-known accounts, country and city names in the post text, and the post's language. A single keyword and weak or conflicting evidence stay visible.
@@ -75,7 +75,7 @@ PRIVACY
 No analytics, no tracking, and no developer-controlled servers. Public author handles are sent only to X's own API through your existing X session; account-country results are cached locally for up to 24 hours. Your settings stay in your browser, and the extension only runs on x.com, pro.x.com, and twitter.com.
 
 FEATURES
-• 10 regions and 20 countries to choose from, one-click on/off
+• 10 regions and 249 countries and areas, with instant search
 • Works on X and X Pro timelines, search, and reply threads
 • Confidence scoring reduces false positives
 • Live counts for selected regions and countries

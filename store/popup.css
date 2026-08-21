@@ -129,6 +129,63 @@ h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
   font-size: 10px;
 }
 
+.country-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  margin-bottom: 7px;
+  padding: 0 10px;
+  border: 1px solid #2f3b46;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  transition: border-color 0.16s, box-shadow 0.16s, background 0.16s;
+}
+.country-search:focus-within {
+  border-color: var(--blue);
+  background: rgba(29, 155, 240, 0.04);
+  box-shadow: 0 0 0 1px rgba(29, 155, 240, 0.25);
+}
+.search-icon {
+  position: relative;
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid #8b98a5;
+  border-radius: 50%;
+}
+.search-icon::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  width: 5px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: #8b98a5;
+  transform: rotate(45deg);
+}
+.country-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  user-select: text;
+}
+.country-search input::placeholder { color: #657786; }
+.country-search input::-webkit-search-cancel-button { cursor: pointer; }
+
+.empty-state {
+  padding: 28px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 /* ---- filter grid ---- */
 
 .grid {
@@ -138,6 +195,20 @@ h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
   transition: opacity 0.25s, filter 0.25s;
 }
 .grid.off { opacity: 0.35; filter: saturate(0.2); pointer-events: none; }
+
+.country-grid {
+  max-height: 342px;
+  padding-right: 3px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: #38444d transparent;
+  scrollbar-width: thin;
+}
+.country-grid::-webkit-scrollbar { width: 5px; }
+.country-grid::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #38444d;
+}
 
 .grid label {
   display: flex; align-items: center; gap: 7px;
@@ -247,6 +318,7 @@ footer {
   transition: color 0.15s, background 0.15s;
 }
 .clear:hover { color: var(--red); background: var(--red-dim); }
+.clear:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

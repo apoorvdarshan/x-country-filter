@@ -164,8 +164,29 @@ const article = {
 };
 assert.deepEqual(
   JSON.parse(JSON.stringify(detection.getTweetData(article))),
-  { handle: "outerauthor", text: "Outer post", lang: "en" },
+  { handle: "outerauthor", text: "Outer post", lang: "en", mentionedHandles: [] },
   "the outer post author must win over a quoted author"
+);
+
+const mentionLink = {
+  textContent: "@Viewer_Account",
+  getAttribute: name => name === "href" ? "/Viewer_Account" : null
+};
+const mentionedArticle = {
+  querySelectorAll: selector => selector.includes("/status/")
+    ? [link("/blocked_author/status/123")]
+    : selector === 'a[href]' ? [mentionLink] : [],
+  querySelector: selector => selector.includes("tweetText")
+    ? {
+        textContent: "Thanks @viewer_account and @second_user",
+        getAttribute: name => name === "lang" ? "en" : null
+      }
+    : null
+};
+assert.deepEqual(
+  JSON.parse(JSON.stringify(detection.getTweetData(mentionedArticle).mentionedHandles)),
+  ["viewer_account", "second_user"],
+  "inline mentions and reply-target links must identify the signed-in account"
 );
 
 assert.deepEqual(
@@ -199,6 +220,16 @@ assert.equal(detection.exemptionReason("someone_else", true, exceptionSettings),
 assert.equal(
   detection.exemptionReason("My_Account", false, exceptionSettings, "my_account"),
   "your signed-in account"
+);
+assert.equal(
+  detection.exemptionReason(
+    "blocked_author",
+    false,
+    exceptionSettings,
+    "my_account",
+    ["my_account"]
+  ),
+  "mentions your signed-in account"
 );
 assert.equal(detection.exemptionReason("someone_else", false, exceptionSettings), null);
 assert.equal(
@@ -267,7 +298,7 @@ for (const url of [
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.4");
+  assert.equal(manifest.version, "1.6.5");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 
@@ -332,9 +363,12 @@ function runContentScenario({
   expectedReason = null,
   expectedPending = false,
   viewerHandle = null,
+  mentionedHandle = null,
+  surface = "forYou",
   profile = null
 }) {
   const classes = new Set();
+  const body = {};
   const cell = {
     classList: {
       add: value => classes.add(value),
@@ -343,6 +377,21 @@ function runContentScenario({
   };
   const timeline = {
     getAttribute: name => name === "aria-label" ? "Timeline: Test Author’s posts" : null
+  };
+  const selectedTab = {
+    textContent: /following/i.test(surface)
+      ? "Following"
+      : surface === "software" ? "Software"
+        : surface === "tech" ? "Tech"
+          : "For you"
+  };
+  const homeColumn = {
+    parentElement: body,
+    querySelectorAll: selector => selector.includes('role="tab"') ? [selectedTab] : []
+  };
+  const homeTimeline = {
+    parentElement: homeColumn,
+    querySelectorAll: () => []
   };
   const primaryColumn = {
     querySelector: selector => selector.includes("UserLocation") && profile
@@ -360,13 +409,28 @@ function runContentScenario({
   const article = {
     isConnected: true,
     closest: selector => {
+      if (selector.includes("Timeline: Your Home Timeline")) {
+        return !profile && /^(?:forYou|following|software|tech|proForYou|proFollowing)$/.test(surface)
+          ? homeTimeline
+          : null;
+      }
       if (selector.includes('aria-label^="Timeline:"')) return profile ? timeline : null;
       if (selector.includes("primaryColumn")) return profile ? primaryColumn : null;
-      return cell;
+      if (selector.includes("cellInnerDiv")) return cell;
+      return null;
     },
-    querySelectorAll: selector => selector.includes("/status/")
-      ? [{ getAttribute: () => "/test_author/status/123" }]
-      : [],
+    querySelectorAll: selector => {
+      if (selector.includes("/status/")) {
+        return [{ getAttribute: () => "/test_author/status/123" }];
+      }
+      if (selector === 'a[href]' && mentionedHandle) {
+        return [{
+          textContent: `@${mentionedHandle}`,
+          getAttribute: name => name === "href" ? `/${mentionedHandle}` : null
+        }];
+      }
+      return [];
+    },
     querySelector: selector => selector.includes("tweetText")
       ? { textContent: "India Mumbai Delhi", getAttribute: () => "en" }
       : null
@@ -377,7 +441,7 @@ function runContentScenario({
     clearInterval() {},
     clearTimeout() {},
     document: {
-      body: {},
+      body,
       cookie: "",
       querySelector: selector => primaryColumn.querySelector(selector),
       querySelectorAll: selector => {
@@ -388,7 +452,14 @@ function runContentScenario({
         return [];
       }
     },
-    location: { pathname: profile ? profile.path || "/test_author" : "/home" },
+    location: {
+      pathname: profile
+        ? profile.path || "/test_author"
+        : /^pro/.test(surface) ? "/i/decks/123"
+          : surface === "notifications" ? "/notifications"
+            : surface === "reply" ? "/blocked_author/status/123"
+              : "/home"
+    },
     setInterval: () => 1,
     setTimeout: () => 1,
     MutationObserver: class { observe() {} disconnect() {} },
@@ -398,7 +469,7 @@ function runContentScenario({
         local: {
           get: (_key, callback) => callback(cached ? {
             xcfLocCache: {
-              version: 7,
+              version: 8,
               viewer: viewerHandle,
               entries: { test_author: { ...cached, ts: Date.now() } }
             }
@@ -461,6 +532,105 @@ runContentScenario({
 });
 runContentScenario({
   settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  surface: "software",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: true
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  surface: "following",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: false
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  surface: "reply",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: false
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  surface: "notifications",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: false
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  surface: "proForYou",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: true
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  surface: "proFollowing",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: false
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  mentionedHandle: "viewer_account",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: false
+  },
+  expectedHidden: false,
+  expectedReason: "mentions your signed-in account"
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
   expectedHidden: false,
   expectedPending: true
 });
@@ -469,33 +639,33 @@ runContentScenario({
   viewerHandle: "test_author",
   profile: { location: "India", following: false },
   expectedHidden: false,
-  expectedReason: "your signed-in account"
+  expectedReason: null
 });
 runContentScenario({
   settings: { hidden: ["IN"] },
   viewerHandle: "viewer_account",
   profile: { location: "India", following: false },
-  expectedHidden: true
+  expectedHidden: false
 });
 runContentScenario({
   settings: { hidden: ["IN"] },
   viewerHandle: "viewer_account",
   profile: { location: "India", following: false, path: "/i/decks/123" },
-  expectedHidden: true
+  expectedHidden: false
 });
 runContentScenario({
   settings: { hidden: ["IN"] },
   viewerHandle: "viewer_account",
   profile: { location: "India", following: null, path: "/i/decks/123" },
   expectedHidden: false,
-  expectedPending: true
+  expectedPending: false
 });
 runContentScenario({
   settings: { hidden: ["IN"] },
   viewerHandle: "viewer_account",
   profile: { location: "India", following: true },
   expectedHidden: false,
-  expectedReason: "account you follow"
+  expectedReason: null
 });
 
 console.log("Detection tests passed");

@@ -51,12 +51,41 @@
     detectionState.delete(cell);
   }
 
+  function isFilteredHomeFeed(article) {
+    if (typeof location === "undefined") return false;
+    const path = String(location.pathname || "");
+    if (!/^\/home\/?$/.test(path) && !/^\/i\/decks(?:\/|$)/.test(path)) return false;
+
+    const timeline = article.closest('[aria-label="Timeline: Your Home Timeline"]');
+    if (!timeline) return false;
+
+    // X keeps For You, Following, and topic feeds on the same /home route.
+    // Filter every selected Home feed except Following. X Pro may show several
+    // Home columns at once, so fail open if the column selection is ambiguous.
+    for (let root = timeline; root && root !== document.body; root = root.parentElement) {
+      if (typeof root.querySelectorAll !== "function") continue;
+      const selected = [...root.querySelectorAll('[role="tab"][aria-selected="true"]')];
+      if (selected.length === 1) {
+        return !/^following$/i.test(String(selected[0].textContent || "").trim());
+      }
+      if (selected.length > 1) return false;
+    }
+    return false;
+  }
+
   function isProfileTimeline(article) {
     const timeline = article.closest('[aria-label^="Timeline:"]');
     const label = timeline && typeof timeline.getAttribute === "function"
       ? timeline.getAttribute("aria-label") || ""
       : "";
     return /['’]s posts$/i.test(label);
+  }
+
+  function isNearViewport(article) {
+    if (!article || typeof article.getBoundingClientRect !== "function") return false;
+    const rect = article.getBoundingClientRect();
+    const height = typeof innerHeight === "number" && innerHeight > 0 ? innerHeight : 900;
+    return rect.bottom >= -height * 0.5 && rect.top <= height * 1.5;
   }
 
   function visibleProfileEvidence(article, handle) {
@@ -111,11 +140,18 @@
   function applyToArticle(article) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
     clearDetectionData(cell);
+    if (!isFilteredHomeFeed(article)) return;
     if (!settings.enabled || (settings.hidden.length === 0 && settings.hiddenRegions.length === 0)) return;
 
     const data = getTweetData(article);
     const viewerHandle = accountLocations && accountLocations.getViewerHandle();
-    const immediateExemption = exemptionReason(data.handle, false, settings, viewerHandle);
+    const immediateExemption = exemptionReason(
+      data.handle,
+      false,
+      settings,
+      viewerHandle,
+      data.mentionedHandles
+    );
     if (immediateExemption) {
       detectionState.set(cell, {
         country: null,
@@ -157,7 +193,9 @@
       ? profileEvidence.following
       : cached && cached.following;
     if (data.handle && !cached && accountLocations) {
-      accountLocations.enqueue(data.handle, isProfileTimeline(article));
+      const priority = isProfileTimeline(article) || isNearViewport(article);
+      accountLocations.enqueue(data.handle, priority);
+      if (priority) accountLocations.pump();
     }
     if (data.handle && !cached && settings.protectFollowing && following !== false) {
       detectionState.set(cell, {
@@ -239,7 +277,14 @@
 
   function observeAddedPosts(mutations) {
     if (orphaned()) return;
+    let feedSelectionChanged = false;
     for (const mutation of mutations) {
+      if (mutation.type === "attributes") {
+        if (mutation.target && mutation.target.getAttribute("role") === "tab") {
+          feedSelectionChanged = true;
+        }
+        continue;
+      }
       for (const node of mutation.addedNodes) {
         const element = node.nodeType === 1 ? node : node.parentElement;
         if (!element) continue;
@@ -249,6 +294,7 @@
         element.querySelectorAll('article[data-testid="tweet"]').forEach(scheduleArticle);
       }
     }
+    if (feedSelectionChanged) scanAll();
   }
 
   chrome.storage.sync.get(DEFAULTS, value => {
@@ -261,7 +307,12 @@
     accountLocations.start();
     scanAll();
     observer = new MutationObserver(observeAddedPosts);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-selected"]
+    });
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {

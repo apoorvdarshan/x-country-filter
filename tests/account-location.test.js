@@ -34,6 +34,9 @@ async function run() {
       requests.push(String(url));
       if (String(url).includes("AboutAccountQuery")) {
         const variables = JSON.parse(new URL("https://x.com" + url).searchParams.get("variables"));
+        if (variables.screenName === "rotated" && String(url).includes("XRqGa7EeokUU5kppkh13EA")) {
+          return response({}, 404);
+        }
         const basedIn = variables.screenName === "regional"
           ? "South Asia"
           : variables.screenName === "profileonly" ? "" : "India";
@@ -101,6 +104,16 @@ async function run() {
   assert.equal(lookup.get("xlkharr").following, true);
   assert.equal(requests.length, 2, "country and following relationship require one request each");
 
+  const rotatedStart = requests.length;
+  lookup.enqueue("rotated");
+  await lookup.pump();
+  assert.equal(lookup.get("rotated").accountCountry, "IN");
+  assert.equal(
+    requests.slice(rotatedStart).filter(url => url.includes("AboutAccountQuery")).length,
+    2,
+    "a rejected AboutAccountQuery hash must fall back to the next known hash"
+  );
+
   lookup.enqueue("regional");
   await lookup.pump();
   assert.equal(lookup.get("regional").cc, null);
@@ -127,7 +140,7 @@ async function run() {
   assert.equal(lookup.get("visibleprofile").profileCountry, "IN");
   assert.equal(lookup.get("visibleprofile").following, false);
   assert.equal(lookup.mergeStored({
-    version: 7,
+    version: 8,
     viewer: "viewer_account",
     entries: {
       sharedprofile: {
@@ -145,6 +158,25 @@ async function run() {
     }
   }), true);
   assert.equal(lookup.get("sharedprofile").accountCountry, "IN");
+  assert.equal(lookup.mergeStored({
+    version: 8,
+    viewer: "viewer_account",
+    entries: {
+      staleempty: {
+        basedIn: "",
+        profileLocation: "",
+        accountCountry: null,
+        accountRegion: null,
+        profileCountry: null,
+        cc: null,
+        matchedPlace: null,
+        following: false,
+        source: null,
+        ts: Date.now() - 11 * 60 * 1000
+      }
+    }
+  }), false, "empty lookups must expire quickly instead of hiding updates for 24 hours");
+  assert.equal(lookup.get("staleempty"), null);
 
   const priorityStart = requests.length;
   lookup.enqueue("normal_one");
@@ -162,7 +194,7 @@ async function run() {
 
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
   assert.ok(stored.some(value =>
-    value.xcfLocCache.version === 7 && value.xcfLocCache.viewer === "viewer_account"
+    value.xcfLocCache.version === 8 && value.xcfLocCache.viewer === "viewer_account"
   ));
   assert.ok(updates >= 5, "cache loads and completed lookups must trigger rescans");
 

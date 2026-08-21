@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.6.4.zip`
+Upload: `dist/country-filter-for-x-1.6.5.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.6.4.zip \
+cd store && zip -qr ../dist/country-filter-for-x-1.6.5.zip \
   manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```
@@ -38,12 +38,12 @@ Fields on the Package tab that need no action:
 ## Access → Test instructions (optional, speeds up review)
 
 ```
-1. Load the extension and open https://x.com or https://pro.x.com (a logged-in account shows more posts, but public pages work too).
+1. Load the extension and open the Home timeline on https://x.com or https://pro.x.com (a logged-in account is required for account-country lookups).
 2. Click the extension icon in the toolbar.
-3. On the Regions tab, check South Asia — accounts labeled South Asia and exact member-country detections disappear. On the Countries tab, search for India and check it to suppress India alone.
-4. The signed-in account's own posts remain visible automatically. On the Exceptions tab, add another username from that region; its posts remain visible too. Accounts followed by the logged-in user also remain visible while "Accounts you follow" is enabled.
-5. Remove the exception or uncheck the filter — the posts update. The header toggle disables the whole filter.
-6. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Opened profiles use their visible location and Follow/Following state immediately. Weak and conflicting evidence stays visible.
+3. On the Regions tab, check South Asia — matching accounts disappear from For You and selected topic tabs such as Software, Tech, and AI. On the Countries tab, search for India and check it to suppress India alone.
+4. Switch to Following, Notifications, an opened conversation, a profile, or search: those surfaces remain untouched.
+5. Back in a recommended Home feed, the signed-in account's own posts and posts mentioning it remain visible automatically. Username exceptions and accounts you follow remain visible too.
+6. Detection checks X's "Account based in" metadata first, then falls back to profile location and conservative on-page signals. Weak and conflicting evidence stays visible.
 ```
 
 ---
@@ -59,28 +59,30 @@ Country Filter for X (Twitter)
 ### Summary (from package — edit in `store/manifest.json`, max 132 chars)
 
 ```
-Hide posts from countries or regions you pick on X, including timelines, search, and reply threads.
+Hide posts from selected countries or regions in X's recommended Home feeds.
 ```
 
 ### Description
 
 ```
-Hide posts from countries or regions you pick — a simple blocklist for your X timeline.
+Hide posts from countries or regions you pick — a simple blocklist for X's recommended Home feeds.
 
-Choose a region or search the complete country-and-area catalog in the popup, and matching posts disappear from your For You feed, Following feed, search results, and reply threads. Uncheck it and they come right back. Selecting a region suppresses both broad X region labels and exact countries within that region.
+Choose a region or search the complete country-and-area catalog in the popup, and matching posts disappear from For You and selected topic tabs such as Software, Tech, and AI. Following, notifications, opened conversations and replies, profiles, and search stay untouched. Uncheck a filter and the posts come right back. Selecting a region suppresses both broad X region labels and exact countries within that region.
 
 HOW IT WORKS
 The extension protects your signed-in account, checks manual username exceptions, and checks whether you follow an account before hiding it. It then uses X's public "Account based in" metadata for post authors. Both exact countries and broad regions such as "South Asia" are supported, with public profile location and conservative on-page signals as fallbacks. A single keyword and weak or conflicting evidence stay visible.
 
 PRIVACY
-No analytics, no tracking, and no developer-controlled servers. The signed-in username and public author handles are read only from X; account-country and followed-account results are cached locally for up to 24 hours and scoped to the signed-in username. Your settings stay in your browser, and the extension only runs on x.com, pro.x.com, and twitter.com.
+No analytics, no tracking, and no developer-controlled servers. The signed-in username and public author handles are read only from X; results are cached locally with shorter lifetimes for profile-only and empty lookups, and scoped to the signed-in username. Your settings stay in your browser, and the extension only runs on x.com, pro.x.com, and twitter.com.
 
 FEATURES
 • 10 regions and 249 countries and areas, with instant search
 • Your signed-in account's own posts always remain visible
+• Posts that directly mention your signed-in username remain visible
 • Username exceptions override every country and region filter
 • Accounts you follow remain visible automatically
-• Works on X and X Pro timelines, search, and reply threads
+• Works in X and X Pro's For You and selected topic feeds
+• Following, notifications, conversations, profiles, and search stay untouched
 • Confidence scoring reduces false positives
 • Live counts for selected regions and countries
 • "Uncheck all" to reset instantly
@@ -136,7 +138,7 @@ English
 ### Single purpose
 
 ```
-Hides posts on x.com, including X Pro at pro.x.com, from countries or regions the user selects.
+Hides posts in recommended Home feeds on x.com, including X Pro at pro.x.com, from countries or regions the user selects.
 ```
 
 ### Permission justification — `storage`

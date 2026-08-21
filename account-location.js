@@ -15,14 +15,22 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   // Public bearer token used by X's web client. It identifies the web app, not
   // the signed-in user; the user's existing X session authorizes the request.
   const BEARER = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA";
-  // These operation hashes are shipped by X's web client and can change when X
-  // deploys. The normal profile-location lookup remains as a fail-open fallback.
-  const ABOUT_QUERY_ID = "TzOG2twZEfhr9KmClvVVqA";
+  // X rotates GraphQL operation hashes and may serve different hashes across
+  // deployments. Try recent known hashes in order and remember the first one
+  // accepted by the current X session. The normal profile-location lookup
+  // remains as a fail-open fallback.
+  const ABOUT_QUERY_IDS = [
+    "XRqGa7EeokUU5kppkh13EA",
+    "zUnx-DLN9dkwOkNhTLySjg",
+    "TzOG2twZEfhr9KmClvVVqA"
+  ];
   const PROFILE_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
 
   const CACHE_KEY = "xcfLocCache";
-  const CACHE_VERSION = 7;
+  const CACHE_VERSION = 8;
   const CACHE_TTL = 24 * 3600 * 1000;
+  const PROFILE_CACHE_TTL = 6 * 3600 * 1000;
+  const NEGATIVE_CACHE_TTL = 10 * 60 * 1000;
   const CACHE_MAX = 5000;
   const PUMP_INTERVAL = 2500;
   const LOOKUPS_PER_PUMP = 2;
@@ -34,6 +42,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     let pumping = false;
     let cooldownUntil = 0;
     let legacyEndpointDead = false;
+    let preferredAboutQuery = 0;
     const profileExtraFeatures = Object.create(null);
     let persistTimer = null;
     let pumpTimer = null;
@@ -42,6 +51,16 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     let viewerResolved = false;
     let savedPayload = null;
     let savedLoaded = false;
+
+    function cacheTtl(value) {
+      if (value && (value.accountCountry || value.accountRegion)) return CACHE_TTL;
+      if (value && value.profileCountry) return PROFILE_CACHE_TTL;
+      return NEGATIVE_CACHE_TTL;
+    }
+
+    function cacheFresh(value, now = Date.now()) {
+      return Boolean(value && Number.isFinite(value.ts) && now - value.ts < cacheTtl(value));
+    }
 
     function getCsrf() {
       const match = document.cookie.match(/(?:^|;\s*)ct0=([^;]+)/);
@@ -89,7 +108,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
 
       const now = Date.now();
       for (const [handle, value] of Object.entries(savedPayload.entries || {})) {
-        if (value && Number.isFinite(value.ts) && now - value.ts < CACHE_TTL) {
+        if (cacheFresh(value, now)) {
           cache.set(handle, value);
         }
       }
@@ -152,7 +171,14 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     }
 
     function get(handle) {
-      return handle ? cache.get(handle.toLowerCase()) || null : null;
+      if (!handle) return null;
+      const normalized = handle.toLowerCase();
+      const value = cache.get(normalized) || null;
+      if (value && !cacheFresh(value)) {
+        cache.delete(normalized);
+        return null;
+      }
+      return value;
     }
 
     function enqueue(handle, priority = false) {
@@ -221,7 +247,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       const now = Date.now();
       for (const [handle, value] of Object.entries(payload.entries || {})) {
         const current = cache.get(handle);
-        if (value && Number.isFinite(value.ts) && now - value.ts < CACHE_TTL &&
+        if (cacheFresh(value, now) &&
             (!current || value.ts > current.ts)) {
           cache.set(handle, value);
           queued.delete(handle);
@@ -259,17 +285,30 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       const params = new URLSearchParams({
         variables: JSON.stringify({ screenName: handle })
       });
-      const response = await fetch(
-        `/i/api/graphql/${ABOUT_QUERY_ID}/AboutAccountQuery?${params}`,
-        { headers: apiHeaders(csrf), credentials: "include" }
-      );
-      if (response.status === 429) {
-        setCooldown(response);
-        return { retry: true, value: "" };
+      for (let offset = 0; offset < ABOUT_QUERY_IDS.length; offset += 1) {
+        const index = (preferredAboutQuery + offset) % ABOUT_QUERY_IDS.length;
+        const response = await fetch(
+          `/i/api/graphql/${ABOUT_QUERY_IDS[index]}/AboutAccountQuery?${params}`,
+          { headers: apiHeaders(csrf), credentials: "include" }
+        );
+        if (response.status === 429) {
+          setCooldown(response);
+          return { retry: true, value: "" };
+        }
+        // A rotated operation hash normally returns 404. Try the next known
+        // hash instead of caching a false "no country" result for this author.
+        if (response.status === 400 || response.status === 404) continue;
+        if (!response.ok) {
+          setCooldown(response);
+          return { retry: true, value: "" };
+        }
+        const body = await response.json().catch(() => null);
+        if (body && Array.isArray(body.errors) && body.errors.length && !body.data) continue;
+        preferredAboutQuery = index;
+        return { retry: false, value: extractAccountBasedIn(body) };
       }
-      if (!response.ok) return { retry: false, value: "" };
-      const body = await response.json().catch(() => null);
-      return { retry: false, value: extractAccountBasedIn(body) };
+      cooldownUntil = Date.now() + 30000;
+      return { retry: true, value: "" };
     }
 
     async function lookupLegacyProfile(handle, csrf) {
@@ -390,10 +429,13 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     }
 
     async function processHandle(handle, csrf) {
-      const about = await lookupAbout(handle, csrf);
+      // Fetch country and relationship metadata together so a newly visible
+      // post spends as little time as possible in the fail-open pending state.
+      const [about, profile] = await Promise.all([
+        lookupAbout(handle, csrf),
+        lookupProfile(handle, csrf)
+      ]);
       if (about.retry) return false;
-
-      const profile = await lookupProfile(handle, csrf);
       if (profile.retry) return false;
       setCached(handle, {
         basedIn: about.value,

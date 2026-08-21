@@ -101,6 +101,30 @@ globalThis.XCF_DETECTION = (() => {
     return /^[A-Za-z0-9_]{1,15}$/.test(handle) ? handle.toLowerCase() : null;
   }
 
+  function extractMentionedHandles(article, text = "") {
+    const handles = new Set();
+    const mentionRegex = /@([A-Za-z0-9_]{1,15})(?![A-Za-z0-9_])/g;
+    for (const match of String(text || "").matchAll(mentionRegex)) {
+      const handle = normalizeHandle(match[1]);
+      if (handle) handles.add(handle);
+    }
+
+    // X renders both inline mentions and the "Replying to @username" context
+    // as direct profile links. Reading those links covers notifications and
+    // reply threads even when the reply target is outside tweetText.
+    if (article && typeof article.querySelectorAll === "function") {
+      for (const link of article.querySelectorAll('a[href]')) {
+        const label = String(link.textContent || "").trim();
+        const labelMatch = label.match(/^@([A-Za-z0-9_]{1,15})$/);
+        const hrefHandle = handleFromHref(link.getAttribute("href"));
+        if (labelMatch && hrefHandle === normalizeHandle(labelMatch[1])) {
+          handles.add(hrefHandle);
+        }
+      }
+    }
+    return [...handles];
+  }
+
   // The first status permalink belongs to the outer/original post. This avoids
   // accidentally classifying a quoted post and works with X Pro's absolute URLs.
   function getTweetData(article) {
@@ -121,10 +145,12 @@ globalThis.XCF_DETECTION = (() => {
     }
 
     const textElement = article.querySelector('div[data-testid="tweetText"]');
+    const text = textElement ? textElement.textContent || "" : "";
     return {
       handle,
-      text: textElement ? textElement.textContent || "" : "",
-      lang: textElement ? textElement.getAttribute("lang") : null
+      text,
+      lang: textElement ? textElement.getAttribute("lang") : null,
+      mentionedHandles: extractMentionedHandles(article, text)
     };
   }
 
@@ -277,9 +303,20 @@ globalThis.XCF_DETECTION = (() => {
     };
   }
 
-  function exemptionReason(handle, following, settings, viewerHandle = null) {
+  function exemptionReason(
+    handle,
+    following,
+    settings,
+    viewerHandle = null,
+    mentionedHandles = []
+  ) {
     const normalized = normalizeHandle(handle);
-    if (normalized && normalized === normalizeHandle(viewerHandle)) return "your signed-in account";
+    const viewer = normalizeHandle(viewerHandle);
+    if (normalized && normalized === viewer) return "your signed-in account";
+    if (viewer && Array.isArray(mentionedHandles) &&
+        mentionedHandles.some(mentioned => normalizeHandle(mentioned) === viewer)) {
+      return "mentions your signed-in account";
+    }
     if (normalized && settings.exemptHandles.includes(normalized)) return "username exception";
     if (following === true && settings.protectFollowing) return "account you follow";
     return null;
@@ -295,6 +332,7 @@ globalThis.XCF_DETECTION = (() => {
   return {
     MIN_CONFIDENCE,
     detectCountry,
+    extractMentionedHandles,
     extractAccountBasedIn,
     getTweetData,
     handleFromHref,

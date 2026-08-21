@@ -5,7 +5,7 @@
 <h1 align="center">Country Filter for X</h1>
 
 <p align="center">
-  <strong>Filter posts by country or region across X and X Pro.</strong>
+  <strong>Filter recommended Home feeds by country or region across X and X Pro.</strong>
 </p>
 
 <p align="center">
@@ -15,15 +15,16 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT license"></a>
 </p>
 
-Chrome extension (Manifest V3) that hides posts from countries or regions you pick on
-**x.com**, including **X Pro** at **pro.x.com**.
-Check a country or region in the popup → its posts disappear from your timeline, search, and
-reply threads. Everything else stays untouched.
+Chrome extension (Manifest V3) that hides posts from countries or regions you pick in
+the recommended Home feeds on **x.com**, including **X Pro** at **pro.x.com**.
+It works in **For You** and selected topic tabs such as Software, Tech, and AI.
+The **Following** tab, notifications, opened conversations and replies, profiles,
+and search results stay untouched.
 
 Need an override? Your signed-in account is always protected, so your own posts
-remain visible. You can also add X usernames under **Exceptions**, or leave
-**Accounts you follow** enabled. All three override every country and region
-filter.
+remain visible. Direct mentions of your username stay visible too. You can also
+add X usernames under **Exceptions**, or leave **Accounts you follow** enabled.
+All four override every country and region filter.
 
 The searchable catalog covers 249 countries and areas across 10 regions. Its
 geographic grouping is based on the [United Nations M49 standard](https://unstats.un.org/unsd/methodology/m49/overview/)
@@ -92,10 +93,11 @@ overrides weaker signals; known-author or profile-location evidence can outweigh
 topic text. The final country, region, confidence, and reasons are retained
 locally for debugging without being added to the page markup.
 
-Before a matching post is hidden, the extension checks three exemptions. The
-signed-in username and any username saved in the popup win immediately. When
-followed-account protection is enabled, the post remains visible while X's
-relationship result is pending and stays visible if you follow that author.
+Before a matching post is hidden, the extension checks four exemptions. Posts
+from the signed-in username, posts that directly mention it, and usernames saved
+in the popup win immediately. When followed-account protection is enabled, the
+post remains visible while X's relationship result is pending and stays visible
+if you follow that author.
 
 Selecting a region suppresses both accounts whose X metadata shows that broad
 region and exact countries assigned to it. For example, selecting South Asia
@@ -114,9 +116,10 @@ suppresses both `Account based in: South Asia` and exact India detections.
   authors in opened profile columns move to the front of the lookup queue.
 - Visible profile evidence is cached locally and shared between open X and
   X Pro tabs for the same signed-in account.
-- Country, profile-location, and whether-you-follow results are throttled to
-  two accounts per ~2.5 seconds and cached for 24 hours. On HTTP 429 the
-  extension backs off for 2 minutes.
+- Visible Home-feed authors are prioritized in the lookup queue. Confirmed
+  account-country results are cached for up to 24 hours, profile-only results
+  for 6 hours, and empty results for 10 minutes so transient misses recover
+  quickly. On HTTP 429 the extension backs off for 2 minutes.
 - Logged out? Lookups are skipped and the heuristic fallbacks still work.
 
 ## If X changes their API
@@ -154,6 +157,8 @@ node tests/detection.test.js && node tests/account-location.test.js
 
 - X's region labels are broader than countries; selecting a region intentionally
   suppresses every country or area assigned to that region
+- Filtering is intentionally limited to recommended Home feeds and never runs
+  in Following, notifications, opened conversations, profiles, or search
 - Followed-account detection needs a logged-in X session and remains
   best-effort if X changes its private relationship fields
 - "Account based in" is X's estimate for the account, not a verified

@@ -3,7 +3,9 @@
 **Last updated: August 21, 2026**
 
 Country Filter for X ("the extension") is a browser extension that hides posts
-on x.com, including X Pro at pro.x.com, from countries or regions the user selects.
+in X/Twitter's recommended Home feeds on x.com, including X Pro at pro.x.com,
+from countries or regions the user selects. It does not filter Following,
+notifications, opened conversations and replies, profiles, or search results.
 
 ## Data collection
 
@@ -24,10 +26,11 @@ server. It does not sell or share data with outside services.**
   read the public location and Follow/Following state already displayed by X.
   The request and displayed data are not sent anywhere else.
 - Account-country and followed-account results are cached in
-  `chrome.storage.local` for up to 24 hours and scoped to the signed-in
-  username. Detection also reads post text and language already displayed on
-  the page. All filtering, exception checks, and scoring happen locally in your
-  browser.
+  `chrome.storage.local` and scoped to the signed-in username. Confirmed
+  account-country results are kept for up to 24 hours, profile-only results for
+  6 hours, and empty lookup results for 10 minutes. Detection also reads post
+  text and language already displayed on the page. All filtering, exception
+  checks, and scoring happen locally in your browser.
 - The extension has no analytics, no tracking, no ads, and makes no network
   requests to any developer-controlled server. It cannot read your browsing
   history and only runs on x.com, pro.x.com, and twitter.com.

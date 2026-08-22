@@ -177,6 +177,24 @@ assert.deepEqual(
   "the outer post author must win over a quoted author"
 );
 
+const followedReplyArticle = {
+  querySelectorAll: selector => selector.includes("/status/")
+    ? [link("/blocked_parent/status/111"), link("/followed_author/status/222")]
+    : [],
+  querySelector: selector => selector.includes("User-Name")
+    ? {
+        querySelectorAll: nestedSelector => nestedSelector === "a[href]"
+          ? [link("/followed_author")]
+          : []
+      }
+    : selector.includes("tweetText") ? textElement : null
+};
+assert.equal(
+  detection.getTweetData(followedReplyArticle).handle,
+  "followed_author",
+  "a surfaced reply must use its displayed author instead of the blocked parent"
+);
+
 const mentionLink = {
   textContent: "@Viewer_Account",
   getAttribute: name => name === "href" ? "/Viewer_Account" : null
@@ -307,7 +325,7 @@ for (const url of [
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.6");
+  assert.equal(manifest.version, "1.6.7");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 
@@ -478,7 +496,7 @@ function runContentScenario({
         local: {
           get: (_key, callback) => callback(cached ? {
             xcfLocCache: {
-              version: 9,
+              version: 10,
               viewer: viewerHandle,
               entries: { test_author: { ...cached, ts: Date.now() } }
             }
@@ -525,6 +543,20 @@ runContentScenario({
   },
   expectedHidden: false,
   expectedReason: "account you follow"
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  cached: {
+    basedIn: "India",
+    accountCountry: "IN",
+    accountRegion: "SOUTH_ASIA",
+    profileCountry: null,
+    cc: "IN",
+    following: null
+  },
+  expectedHidden: false,
+  expectedPending: true
 });
 runContentScenario({
   settings: { hidden: ["IN"] },

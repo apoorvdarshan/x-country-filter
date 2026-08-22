@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.6.6.zip`
+Upload: `dist/country-filter-for-x-1.6.7.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.6.6.zip \
+cd store && zip -qr ../dist/country-filter-for-x-1.6.7.zip \
   manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```

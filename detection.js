@@ -125,22 +125,25 @@ globalThis.XCF_DETECTION = (() => {
     return [...handles];
   }
 
-  // The first status permalink belongs to the outer/original post. This avoids
-  // accidentally classifying a quoted post and works with X Pro's absolute URLs.
+  // Resolve the author from the displayed identity before considering nested
+  // status links from reply parents or quoted posts.
   function getTweetData(article) {
     let handle = null;
-    for (const link of article.querySelectorAll('a[href*="/status/"]')) {
-      handle = handleFromHref(link.getAttribute("href"));
-      if (handle) break;
+    const userName = article.querySelector('div[data-testid="User-Name"]');
+    if (userName) {
+      for (const link of userName.querySelectorAll("a[href]")) {
+        handle = handleFromHref(link.getAttribute("href"));
+        if (handle) break;
+      }
     }
 
+    // The displayed User-Name is the safest author boundary for replies that
+    // X surfaces beneath a parent post. Fall back to the first permalink for
+    // compact cards where X omits that container.
     if (!handle) {
-      const userName = article.querySelector('div[data-testid="User-Name"]');
-      if (userName) {
-        for (const link of userName.querySelectorAll("a[href]")) {
-          handle = handleFromHref(link.getAttribute("href"));
-          if (handle) break;
-        }
+      for (const link of article.querySelectorAll('a[href*="/status/"]')) {
+        handle = handleFromHref(link.getAttribute("href"));
+        if (handle) break;
       }
     }
 

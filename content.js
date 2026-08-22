@@ -197,7 +197,8 @@
       accountLocations.enqueue(data.handle, priority);
       if (priority) accountLocations.pump();
     }
-    if (data.handle && !cached && settings.protectFollowing && following !== false) {
+    if (data.handle && accountLocations && settings.protectFollowing &&
+        typeof following !== "boolean") {
       detectionState.set(cell, {
         country: null,
         region: null,

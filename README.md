@@ -97,7 +97,9 @@ Before a matching post is hidden, the extension checks four exemptions. Posts
 from the signed-in username, posts that directly mention it, and usernames saved
 in the popup win immediately. When followed-account protection is enabled, the
 post remains visible while X's relationship result is pending and stays visible
-if you follow that author.
+if you follow that author. For replies surfaced in a recommended feed, the
+extension checks the displayed reply author—not the parent or quoted account—so
+a reply from someone you follow stays visible even when its parent is blocked.
 
 Selecting a region suppresses both accounts whose X metadata shows that broad
 region and exact countries assigned to it. For example, selecting South Asia
@@ -120,9 +122,10 @@ suppresses both `Account based in: South Asia` and exact India detections.
   account-country results are cached for up to 24 hours, profile-only results
   for 6 hours, and empty results for 10 minutes so transient misses recover
   quickly. On HTTP 429 the extension backs off for 2 minutes.
-- X rotates its private account-location operation ID. The extension tries
-  current fallbacks and reuses an `AboutAccountQuery` ID observed in X's own
-  loaded requests, without contacting a developer-controlled service.
+- X rotates its private account-location and profile operation IDs. The
+  extension tries current fallbacks and reuses `AboutAccountQuery` and
+  `UserByScreenName` IDs observed in X's own loaded requests, without contacting
+  a developer-controlled service.
 - Logged out? Lookups are skipped and the heuristic fallbacks still work.
 
 ## If X changes their API
@@ -133,10 +136,11 @@ suppresses both `Account based in: South Asia` and exact India detections.
 - Profile fallback first tries `/i/api/1.1/users/lookup.json`; if X removes it,
   the extension automatically falls back to `UserByScreenName`. These profile
   responses also provide the followed-account exemption.
-- The GraphQL call self-heals when X adds new required feature flags (it parses the
-  "features cannot be null" error and retries). If the **query id** itself expires
-  (404), update the corresponding operation id in `account-location.js` from a
-  current X web request.
+- The profile GraphQL call self-heals when X adds new required feature flags (it
+  parses the "features cannot be null" error and retries). Both GraphQL lookups
+  also discover operation IDs already loaded by X and fall back across recent
+  known IDs. If every fallback expires, add a current X web operation ID to
+  `account-location.js`.
 - If X renames its `data-testid` attributes (`tweet`, `tweetText`, `User-Name`,
   `cellInnerDiv`), the selectors in `content.js` need updating.
 

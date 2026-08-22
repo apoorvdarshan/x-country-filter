@@ -25,10 +25,13 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     "zUnx-DLN9dkwOkNhTLySjg",
     "TzOG2twZEfhr9KmClvVVqA"
   ];
-  const PROFILE_QUERY_ID = "G3KGOASz96M-Qu0nwmGXNg";
+  const PROFILE_QUERY_IDS = [
+    "Gb-d6r0vxPOADdG62OEBpQ",
+    "G3KGOASz96M-Qu0nwmGXNg"
+  ];
 
   const CACHE_KEY = "xcfLocCache";
-  const CACHE_VERSION = 9;
+  const CACHE_VERSION = 10;
   const CACHE_TTL = 24 * 3600 * 1000;
   const PROFILE_CACHE_TTL = 6 * 3600 * 1000;
   const NEGATIVE_CACHE_TTL = 10 * 60 * 1000;
@@ -44,6 +47,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     let cooldownUntil = 0;
     let legacyEndpointDead = false;
     let preferredAboutQueryId = null;
+    let preferredProfileQueryId = null;
     const profileExtraFeatures = Object.create(null);
     let persistTimer = null;
     let pumpTimer = null;
@@ -54,6 +58,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     let savedLoaded = false;
 
     function cacheTtl(value) {
+      if (value && typeof value.following !== "boolean") return NEGATIVE_CACHE_TTL;
       if (value && (value.accountCountry || value.accountRegion)) return CACHE_TTL;
       if (value && value.profileCountry) return PROFILE_CACHE_TTL;
       return NEGATIVE_CACHE_TTL;
@@ -95,6 +100,27 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         preferredAboutQueryId,
         ...observedAboutQueryIds(),
         ...ABOUT_QUERY_IDS
+      ].filter(Boolean))];
+    }
+
+    function observedProfileQueryIds() {
+      if (typeof performance === "undefined" ||
+          typeof performance.getEntriesByType !== "function") return [];
+      const ids = [];
+      for (const entry of performance.getEntriesByType("resource")) {
+        const match = String(entry && entry.name || "").match(
+          /\/i\/api\/graphql\/([A-Za-z0-9_-]{8,})\/UserByScreenName(?:[/?#]|$)/
+        );
+        if (match && !ids.includes(match[1])) ids.push(match[1]);
+      }
+      return ids;
+    }
+
+    function profileQueryCandidates() {
+      return [...new Set([
+        preferredProfileQueryId,
+        ...observedProfileQueryIds(),
+        ...PROFILE_QUERY_IDS
       ].filter(Boolean))];
     }
 
@@ -377,33 +403,44 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       return statuses ? statuses.includes("following") : null;
     }
 
-    async function lookupGraphqlProfile(handle, csrf, retried = false) {
+    async function lookupGraphqlProfileWithId(handle, csrf, queryId, retried = false) {
       const features = {
-        hidden_profile_subscriptions_enabled: false,
+        hidden_profile_subscriptions_enabled: true,
+        profile_label_improvements_pcf_label_in_post_enabled: true,
+        responsive_web_profile_redirect_enabled: true,
         rweb_tipjar_consultation_enabled: false,
+        rweb_tipjar_consumption_enabled: false,
         responsive_web_graphql_exclude_directive_enabled: true,
-        verified_phone_label_enabled: false,
-        highlights_tweets_tab_ui_enabled: false,
-        responsive_web_twitter_article_notes_tab_enabled: false,
-        creator_subscriptions_tweet_preview_api_enabled: false,
+        verified_phone_label_enabled: true,
+        highlights_tweets_tab_ui_enabled: true,
+        responsive_web_twitter_article_notes_tab_enabled: true,
+        creator_subscriptions_tweet_preview_api_enabled: true,
         responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
         responsive_web_graphql_timeline_navigation_enabled: true,
-        subscriptions_verification_info_is_identity_verified_enabled: false,
-        subscriptions_verification_info_verified_since_enabled: false,
-        subscriptions_feature_can_gift_premium: false,
+        subscriptions_verification_info_is_identity_verified_enabled: true,
+        subscriptions_verification_info_verified_since_enabled: true,
+        subscriptions_feature_can_gift_premium: true,
         ...profileExtraFeatures
       };
       const params = new URLSearchParams({
-        variables: JSON.stringify({ screen_name: handle, withSafetyModeUserFields: true }),
-        features: JSON.stringify(features)
+        variables: JSON.stringify({
+          screen_name: handle,
+          withSafetyModeUserFields: true,
+          withGrokTranslatedBio: true
+        }),
+        features: JSON.stringify(features),
+        fieldToggles: JSON.stringify({
+          withPayments: false,
+          withAuxiliaryUserLabels: true
+        })
       });
       const response = await fetch(
-        `/i/api/graphql/${PROFILE_QUERY_ID}/UserByScreenName?${params}`,
+        `/i/api/graphql/${queryId}/UserByScreenName?${params}`,
         { headers: apiHeaders(csrf), credentials: "include" }
       );
       if (response.status === 429) {
         setCooldown(response);
-        return { retry: true, value: { location: "", following: null } };
+        return { retry: true, tryNext: false, value: { location: "", following: null } };
       }
       const body = await response.json().catch(() => null);
       if (!response.ok) {
@@ -411,9 +448,13 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         const missing = message.match(/features cannot be null:\s*(.+)/i);
         if (missing && !retried) {
           for (const feature of missing[1].split(",")) profileExtraFeatures[feature.trim()] = false;
-          return lookupGraphqlProfile(handle, csrf, true);
+          return lookupGraphqlProfileWithId(handle, csrf, queryId, true);
         }
-        return { retry: false, value: { location: "", following: null } };
+        if (response.status === 400 || response.status === 404) {
+          return { retry: false, tryNext: true, value: { location: "", following: null } };
+        }
+        setCooldown(response);
+        return { retry: true, tryNext: false, value: { location: "", following: null } };
       }
       const data = body && body.data;
       const result = data && (
@@ -424,13 +465,25 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         (result.legacy && result.legacy.location) ||
         (result.location && result.location.location)
       );
+      preferredProfileQueryId = queryId;
       return {
         retry: false,
+        tryNext: false,
         value: {
           location: typeof location === "string" ? location : "",
           following: graphqlFollowing(result)
         }
       };
+    }
+
+    async function lookupGraphqlProfile(handle, csrf) {
+      for (const queryId of profileQueryCandidates()) {
+        const result = await lookupGraphqlProfileWithId(handle, csrf, queryId);
+        if (result.tryNext) continue;
+        return { retry: result.retry, value: result.value };
+      }
+      cooldownUntil = Date.now() + 30000;
+      return { retry: true, value: { location: "", following: null } };
     }
 
     async function lookupProfile(handle, csrf) {

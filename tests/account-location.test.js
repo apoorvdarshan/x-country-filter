@@ -27,7 +27,10 @@ async function run() {
     },
     performance: {
       getEntriesByType: type => type === "resource"
-        ? [{ name: "https://pro.x.com/i/api/graphql/liveObserved123/AboutAccountQuery?variables=%7B%7D" }]
+        ? [
+            { name: "https://pro.x.com/i/api/graphql/liveObserved123/AboutAccountQuery?variables=%7B%7D" },
+            { name: "https://x.com/i/api/graphql/liveProfileObserved456/UserByScreenName?variables=%7B%7D" }
+          ]
         : []
     },
     setInterval: () => 1,
@@ -55,7 +58,7 @@ async function run() {
       }
       if (String(url).includes("users/lookup.json")) {
         const handle = new URL("https://x.com" + url).searchParams.get("screen_name");
-        if (handle === "graphqlfollow") return response({}, 404);
+        if (["graphqlfollow", "profileobserved"].includes(handle)) return response({}, 404);
         return response([{
           screen_name: handle,
           location: handle === "profileonly" ? "Bengaluru, India" : "",
@@ -63,6 +66,11 @@ async function run() {
         }]);
       }
       if (String(url).includes("UserByScreenName")) {
+        const request = new URL("https://x.com" + url);
+        const handle = JSON.parse(request.searchParams.get("variables")).screen_name;
+        if (handle === "graphqlfollow" && String(url).includes("liveProfileObserved456")) {
+          return response({}, 404);
+        }
         return response({
           data: {
             user: {
@@ -140,16 +148,34 @@ async function run() {
   assert.equal(lookup.get("profileonly").profileCountry, "IN");
   assert.equal(lookup.get("profileonly").following, false);
 
+  const observedProfileStart = requests.length;
+  lookup.enqueue("profileobserved");
+  await lookup.pump();
+  assert.equal(lookup.get("profileobserved").following, true);
+  assert.ok(
+    requests.slice(observedProfileStart).find(url => url.includes("UserByScreenName"))
+      .includes("liveProfileObserved456"),
+    "a UserByScreenName operation observed from X's own requests must be preferred"
+  );
+
+  const rotatedProfileStart = requests.length;
   lookup.enqueue("graphqlfollow");
   await lookup.pump();
   assert.equal(lookup.get("graphqlfollow").following, true);
-  assert.ok(requests.some(url => url.includes("UserByScreenName")));
+  const rotatedProfileRequests = requests.slice(rotatedProfileStart)
+    .filter(url => url.includes("UserByScreenName"));
+  assert.equal(
+    rotatedProfileRequests.length,
+    2,
+    "a rejected UserByScreenName hash must fall back to the current known hash"
+  );
+  assert.ok(rotatedProfileRequests[1].includes("Gb-d6r0vxPOADdG62OEBpQ"));
 
   assert.equal(lookup.rememberProfile("visibleprofile", "Bengaluru, India", false), true);
   assert.equal(lookup.get("visibleprofile").profileCountry, "IN");
   assert.equal(lookup.get("visibleprofile").following, false);
   assert.equal(lookup.mergeStored({
-    version: 9,
+    version: 10,
     viewer: "viewer_account",
     entries: {
       sharedprofile: {
@@ -168,7 +194,7 @@ async function run() {
   }), true);
   assert.equal(lookup.get("sharedprofile").accountCountry, "IN");
   assert.equal(lookup.mergeStored({
-    version: 9,
+    version: 10,
     viewer: "viewer_account",
     entries: {
       staleempty: {
@@ -203,7 +229,7 @@ async function run() {
 
   assert.ok(requests.some(url => url.includes("users/lookup.json")));
   assert.ok(stored.some(value =>
-    value.xcfLocCache.version === 9 && value.xcfLocCache.viewer === "viewer_account"
+    value.xcfLocCache.version === 10 && value.xcfLocCache.viewer === "viewer_account"
   ));
   assert.ok(updates >= 5, "cache loads and completed lookups must trigger rescans");
 

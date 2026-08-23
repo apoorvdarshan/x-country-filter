@@ -86,7 +86,7 @@ FEATURES
 • Confidence scoring reduces false positives
 • Live counts for selected regions and countries
 • "Uncheck all" to reset instantly
-• Open source: github.com/apoorvdarshan/x-country-filter
+• Open source: github.com/aopv/x-country-filter
 ```
 
 ### Category
@@ -126,8 +126,8 @@ English
 | Field | Value |
 |---|---|
 | Official URL | `None` — requires verifying site ownership in Google Search Console; GitHub repos can't be verified. Homepage URL below covers it. |
-| Homepage URL | `https://github.com/apoorvdarshan/x-country-filter` |
-| Support URL | `https://github.com/apoorvdarshan/x-country-filter/issues` |
+| Homepage URL | `https://github.com/aopv/x-country-filter` |
+| Support URL | `https://github.com/aopv/x-country-filter/issues` |
 | Mature content | leave **unchecked** — no sexual content, strong language, violence, or drugs/alcohol focus |
 | Item support visibility | either is fine; ON shows a support tab pointing at the URLs above |
 
@@ -182,7 +182,7 @@ Certify all three disclosures:
 ### Privacy policy URL
 
 ```
-https://github.com/apoorvdarshan/x-country-filter/blob/master/PRIVACY.md
+https://github.com/aopv/x-country-filter/blob/master/PRIVACY.md
 ```
 
 ---

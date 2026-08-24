@@ -318,14 +318,14 @@ const popupMarkup = fs.readFileSync("popup.html", "utf8");
 for (const url of [
   "https://github.com/apoorvdarshan/x-country-filter",
   "https://github.com/apoorvdarshan/x-country-filter/issues/new",
-  "https://x.com/aporvv",
+  "https://x.com/apoorvdarshan",
   "https://www.producthunt.com/products/country-filter-for-x-twitter/"
 ]) {
   assert.ok(popupMarkup.includes(`href="${url}"`), `popup must link to ${url}`);
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.8");
+  assert.equal(manifest.version, "1.6.7");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 

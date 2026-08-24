@@ -11,13 +11,13 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.6.7.zip`
+Upload: `dist/country-filter-for-x-1.6.8.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.6.7.zip \
+cd store && zip -qr ../dist/country-filter-for-x-1.6.8.zip \
   manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```
@@ -126,7 +126,7 @@ English
 | Field | Value |
 |---|---|
 | Official URL | `None` — requires verifying site ownership in Google Search Console; GitHub repos can't be verified. Homepage URL below covers it. |
-| Homepage URL | `https://github.com/aopv/x-country-filter` |
+| Homepage URL | `https://aopv.dev` |
 | Support URL | `https://github.com/aopv/x-country-filter/issues` |
 | Mature content | leave **unchecked** — no sexual content, strong language, violence, or drugs/alcohol focus |
 | Item support visibility | either is fine; ON shows a support tab pointing at the URLs above |

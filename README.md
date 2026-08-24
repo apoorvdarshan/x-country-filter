@@ -33,7 +33,7 @@ for labels commonly shown on X.
 
 Support the project: [star it on GitHub](https://github.com/aopv/x-country-filter),
 [report an issue](https://github.com/aopv/x-country-filter/issues/new),
-[follow @apoorvdarshan on X](https://x.com/apoorvdarshan), or
+[follow @aporvv on X](https://x.com/aporvv), or
 [vote on Product Hunt](https://www.producthunt.com/products/country-filter-for-x-twitter/).
 
 ## See it in action

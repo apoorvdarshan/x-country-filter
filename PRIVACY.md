@@ -42,5 +42,5 @@ server. It does not sell or share data with outside services.**
 ## Contact
 
 Questions: open an issue at
-https://github.com/aopv/x-country-filter/issues
+https://github.com/apoorvdarshan/x-country-filter/issues
 or email ad13dtu@gmail.com.

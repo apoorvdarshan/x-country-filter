@@ -3,7 +3,7 @@
   "name": "Country Filter for X (Twitter)",
   "version": "1.6.8",
   "description": "Hide posts from selected countries or regions in X's recommended Home feeds.",
-  "homepage_url": "https://aopv.dev",
+  "homepage_url": "https://apoorvdarshan.com",
   "permissions": ["storage"],
   "content_scripts": [
     {

@@ -316,8 +316,8 @@ for (const file of ["popup.html", "popup.css", "popup.js"]) {
 }
 const popupMarkup = fs.readFileSync("popup.html", "utf8");
 for (const url of [
-  "https://github.com/aopv/x-country-filter",
-  "https://github.com/aopv/x-country-filter/issues/new",
+  "https://github.com/apoorvdarshan/x-country-filter",
+  "https://github.com/apoorvdarshan/x-country-filter/issues/new",
   "https://x.com/aporvv",
   "https://www.producthunt.com/products/country-filter-for-x-twitter/"
 ]) {

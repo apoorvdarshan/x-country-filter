@@ -435,7 +435,7 @@ label.on .cname { color: var(--text); font-weight: 600; }
 
 .support-rail {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 5px;
   margin-top: 10px;
   padding-top: 9px;
@@ -485,7 +485,6 @@ label.on .cname { color: var(--text); font-weight: 600; }
 .star-icon { color: #f2cc60; }
 .issue-icon { color: #ff7a84; }
 .x-icon { background: #050505; color: #fff; }
-.ph-icon { background: #da552f; color: #fff; }
 
 /* ---- footer ---- */
 

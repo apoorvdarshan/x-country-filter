@@ -10,7 +10,6 @@
 
 <p align="center">
   <a href="https://chromewebstore.google.com/detail/country-filter-for-x-twit/cocohplmilpblbkoikolbhakjipccioa"><img src="https://img.shields.io/badge/Chrome%20Web%20Store-Install-1d9bf0?logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store"></a>
-  <a href="https://www.producthunt.com/products/country-filter-for-x-twitter/"><img src="https://img.shields.io/badge/Product%20Hunt-Upvote-DA552F?logo=producthunt&logoColor=white" alt="Upvote on Product Hunt"></a>
   <a href="https://github.com/apoorvdarshan/x-country-filter/stargazers"><img src="https://img.shields.io/github/stars/apoorvdarshan/x-country-filter?style=flat&logo=github&label=Stars" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e" alt="MIT license"></a>
 </p>
@@ -32,9 +31,8 @@ and adapted to the extension's region labels, with Taiwan and Kosovo included
 for labels commonly shown on X.
 
 Support the project: [star it on GitHub](https://github.com/apoorvdarshan/x-country-filter),
-[report an issue](https://github.com/apoorvdarshan/x-country-filter/issues/new),
-[follow @apoorvdarshan on X](https://x.com/apoorvdarshan), or
-[vote on Product Hunt](https://www.producthunt.com/products/country-filter-for-x-twitter/).
+[report an issue](https://github.com/apoorvdarshan/x-country-filter/issues/new), or
+[follow @apoorvdarshan on X](https://x.com/apoorvdarshan).
 
 ## See it in action
 

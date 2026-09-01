@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Country Filter for X (Twitter)",
-  "version": "1.6.8",
+  "version": "1.6.9",
   "description": "Hide posts from selected countries or regions in X's recommended Home feeds.",
   "homepage_url": "https://apoorvdarshan.com",
   "permissions": ["storage"],

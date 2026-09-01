@@ -324,7 +324,7 @@ for (const url of [
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.8");
+  assert.equal(manifest.version, "1.6.9");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
 }
 

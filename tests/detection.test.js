@@ -323,7 +323,8 @@ const popupMarkup = fs.readFileSync("popup.html", "utf8");
 for (const url of [
   "https://github.com/apoorvdarshan/x-country-filter",
   "https://github.com/apoorvdarshan/x-country-filter/issues/new",
-  "https://x.com/apoorvdarshan"
+  "https://x.com/apoorvdarshan",
+  "https://www.producthunt.com/products/country-filter-for-x-2"
 ]) {
   assert.ok(popupMarkup.includes(`href="${url}"`), `popup must link to ${url}`);
 }

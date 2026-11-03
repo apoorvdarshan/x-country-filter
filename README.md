@@ -39,16 +39,24 @@ Support the project: [star it on GitHub](https://github.com/apoorvdarshan/x-coun
 ## See it in action
 
 <p align="center">
-  <img src="store-assets/screenshot-1-hero-1280x800.png" width="100%" alt="Country Filter for X hero showing country and region filtering">
+  <img src="store-assets/screenshot-1-hero-1280x800.png" width="100%" alt="Country Filter for X hides posts from chosen countries and regions in the For You feed">
 </p>
 
 <table>
   <tr>
     <td width="50%">
-      <img src="store-assets/screenshot-2-features-1280x800.png" width="100%" alt="Country Filter for X supports 249 countries, 10 regions, search, and username exceptions">
+      <img src="store-assets/screenshot-2-choices-1280x800.png" width="100%" alt="249 countries and 10 regions, with country search">
     </td>
     <td width="50%">
-      <img src="store-assets/screenshot-3-privacy-1280x800.png" width="100%" alt="Country Filter for X privacy features and X Pro support">
+      <img src="store-assets/screenshot-3-exceptions-1280x800.png" width="100%" alt="Your posts, mentions, followed accounts and saved usernames always stay visible">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="store-assets/screenshot-4-languages-1280x800.png" width="100%" alt="Works in every X display language">
+    </td>
+    <td width="50%">
+      <img src="store-assets/screenshot-5-privacy-1280x800.png" width="100%" alt="Private by design: no developer servers, no tracking, runs on x.com and X Pro">
     </td>
   </tr>
 </table>

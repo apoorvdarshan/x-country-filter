@@ -109,9 +109,11 @@ English
 | Asset | File | Notes |
 |---|---|---|
 | Store icon | `store-assets/store-icon-128.png` | 128×128 prohibition-mark logo with transparent outer corners |
-| Screenshot 1 (hero, upload first) | `store-assets/screenshot-1-hero-1280x800.png` | new logo, country/region tagline, and popup preview |
-| Screenshot 2 (features) | `store-assets/screenshot-2-features-1280x800.png` | 249 countries, 10 regions, search, and username exceptions |
-| Screenshot 3 (privacy) | `store-assets/screenshot-3-privacy-1280x800.png` | privacy promises plus X and X Pro support |
+| Screenshot 1 (hero, upload first) | `store-assets/screenshot-1-hero-1280x800.png` | logo, tagline, For You feed with a hidden post, and the Regions popup |
+| Screenshot 2 (choices) | `store-assets/screenshot-2-choices-1280x800.png` | 249 countries, 10 regions, Regions and Countries search popups |
+| Screenshot 3 (exceptions) | `store-assets/screenshot-3-exceptions-1280x800.png` | signed-in account, followed accounts, and username exceptions |
+| Screenshot 4 (languages) | `store-assets/screenshot-4-languages-1280x800.png` | works in every X display language |
+| Screenshot 5 (privacy) | `store-assets/screenshot-5-privacy-1280x800.png` | no developer servers, no tracking, x.com and X Pro |
 | Small promo tile (optional) | — not made yet | 440×280 PNG, improves discovery placement |
 
 ### Global assets
@@ -202,7 +204,7 @@ https://github.com/apoorvdarshan/x-country-filter/blob/master/PRIVACY.md
 - [ ] Zip uploaded (Package tab shows title + summary from manifest)
 - [ ] Description, category, language filled
 - [ ] Store icon uploaded (128×128)
-- [ ] All three 1280×800 screenshots uploaded, hero first
+- [ ] All five 1280×800 screenshots uploaded, hero first
 - [ ] Privacy tab: purpose, 2 justifications, Website content disclosure, policy URL
 - [ ] Distribution: public, all regions
 - [ ] "Submit for review" (first review typically takes a few days)

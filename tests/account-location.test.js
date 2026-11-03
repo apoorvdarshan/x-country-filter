@@ -174,6 +174,12 @@ async function run() {
   assert.equal(lookup.rememberProfile("visibleprofile", "Bengaluru, India", false), true);
   assert.equal(lookup.get("visibleprofile").profileCountry, "IN");
   assert.equal(lookup.get("visibleprofile").following, false);
+  assert.equal(lookup.get("visibleprofile").provisional, true);
+  lookup.enqueue("visibleprofile");
+  await lookup.pump();
+  assert.equal(lookup.get("visibleprofile").provisional, false,
+    "visible profile evidence must not block X's account metadata lookup");
+  assert.equal(lookup.get("visibleprofile").accountCountry, "IN");
   assert.equal(lookup.mergeStored({
     version: 10,
     viewer: "viewer_account",
@@ -269,6 +275,53 @@ async function run() {
   assert.equal(fallbackLookup.viewerReady(), true);
   assert.equal(fallbackLookup.getViewerHandle(), "fallback_user");
   assert.deepEqual(fallbackRequests, ["/i/api/1.1/account/settings.json"]);
+
+  // A lookup that keeps failing stops retrying and is cached briefly as empty.
+  const brokenRequests = [];
+  const brokenContext = {
+    URL,
+    URLSearchParams,
+    clearInterval() {},
+    clearTimeout() {},
+    document: {
+      cookie: "ct0=test-csrf",
+      querySelectorAll: selector => selector.includes("SideNav_AccountSwitcher_Button")
+        ? [{ textContent: "Viewer@viewer_account", getAttribute: () => null }]
+        : []
+    },
+    setInterval: () => 1,
+    setTimeout: () => 1,
+    fetch: async url => {
+      brokenRequests.push(String(url));
+      throw new Error("network down");
+    },
+    chrome: { storage: { local: { get: (_key, callback) => callback({}), set() {} } } }
+  };
+  brokenContext.globalThis = brokenContext;
+  vm.createContext(brokenContext);
+  for (const file of ["country-catalog.js", "countries.js", "detection.js", "account-location.js"]) {
+    vm.runInContext(fs.readFileSync(file, "utf8"), brokenContext, { filename: file });
+  }
+  const updatedHandles = [];
+  const brokenLookup = brokenContext.XCF_ACCOUNT_LOCATION.create({
+    shouldLookup: () => true,
+    onUpdate: handles => { if (handles) updatedHandles.push(...handles); }
+  });
+  brokenLookup.start();
+  brokenLookup.enqueue("broken");
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    assert.equal(brokenLookup.get("broken"), null, `attempt ${attempt} must still be pending`);
+    await brokenLookup.pump();
+  }
+  const capped = brokenLookup.get("broken");
+  assert.ok(capped, "a repeatedly failing author must stop being retried");
+  assert.equal(capped.following, null);
+  assert.equal(capped.cc, null);
+  assert.deepEqual(updatedHandles, ["broken"], "only the affected author must be rescanned");
+  const requestsAfterCap = brokenRequests.length;
+  brokenLookup.enqueue("broken");
+  await brokenLookup.pump();
+  assert.equal(brokenRequests.length, requestsAfterCap, "a capped author waits for its cache entry to expire");
 
   console.log("Account-location tests passed");
 }

@@ -78,8 +78,9 @@ The extension combines independent signals into a confidence score:
    free text ("Bengaluru, India" → IN, "San Francisco, CA" → US, "東京" → JP).
    Every catalog country supports exact names and common aliases; the original
    hand-tuned countries also recognize major cities and native-script names.
-   An opened profile uses its visible location and Follow/Following button
-   immediately instead of waiting for X's API.
+   An opened profile's visible location and Follow/Following button are
+   remembered for that author's Home-feed posts right away, while X's
+   "Account based in" value is still looked up.
 3. **Known accounts** — lists of well-known tech-news handles per country in `countries.js`
 4. **Keywords** — country/city/company names in the post text (word-boundary matched)
 5. **Post language** — scored only when the language maps to exactly one country
@@ -119,7 +120,9 @@ suppresses both `Account based in: South Asia` and exact India detections.
 - Visible Home-feed authors are prioritized in the lookup queue. Confirmed
   account-country results are cached for up to 24 hours, profile-only results
   for 6 hours, and empty results for 10 minutes so transient misses recover
-  quickly. On HTTP 429 the extension backs off for 2 minutes.
+  quickly. On HTTP 429 the extension backs off for 2 minutes. An author whose
+  lookup fails three times for other reasons is skipped for 10 minutes so it
+  can't stall the queue.
 - X rotates its private account-location and profile operation IDs. The
   extension tries current fallbacks and reuses `AboutAccountQuery` and
   `UserByScreenName` IDs observed in X's own loaded requests, without contacting
@@ -139,8 +142,12 @@ suppresses both `Account based in: South Asia` and exact India detections.
   also discover operation IDs already loaded by X and fall back across recent
   known IDs. If every fallback expires, add a current X web operation ID to
   `account-location.js`.
-- If X renames its `data-testid` attributes (`tweet`, `tweetText`, `User-Name`,
-  `cellInnerDiv`), the selectors in `content.js` need updating.
+- Feed and profile detection in `feed.js` relies on X's page structure
+  (`section[role="region"]` timelines, `role="tab"` Home tabs, `UserName` and
+  `<id>-follow`/`<id>-unfollow` test IDs) rather than English labels. If X
+  renames its `data-testid` attributes (`tweet`, `tweetText`, `User-Name`,
+  `cellInnerDiv`, `primaryColumn`), the selectors in `feed.js`, `content.js`,
+  and `detection.js` need updating.
 
 ## Customizing
 
@@ -148,15 +155,18 @@ suppresses both `Account based in: South Asia` and exact India detections.
 - Add richer per-country signals: `countries.js` — `places` (profile-location matching),
   `keywords` (tweet text), `handles` (known accounts), `langs`
 - Adjust scoring and ambiguity rules: `detection.js`
+- Adjust which feeds, tabs, and profile columns are recognized: `feed.js`
 - After editing files, hit the reload icon on `chrome://extensions` and refresh x.com
 
 ## Development
 
-The extension has no build-time dependencies. Run the detection regression suite with:
+The extension has no build-time dependencies. Run the regression suites with:
 
 ```sh
-node tests/detection.test.js && node tests/account-location.test.js
+node tests/detection.test.js && node tests/account-location.test.js && node tests/feed.test.js
 ```
+
+GitHub Actions runs the same suites on every push and pull request.
 
 ## Limitations
 
@@ -164,6 +174,9 @@ node tests/detection.test.js && node tests/account-location.test.js
   suppresses every country or area assigned to that region
 - Filtering is intentionally limited to recommended Home feeds and never runs
   in Following, notifications, opened conversations, profiles, or search
+- Any X display language works. Outside English, the Following tab is
+  recognized as the second Home tab, and X Pro recognizes a translated Home
+  column after x.com's Home feed has been opened once in that language
 - Followed-account detection needs a logged-in X session and remains
   best-effort if X changes its private relationship fields
 - "Account based in" is X's estimate for the account, not a verified

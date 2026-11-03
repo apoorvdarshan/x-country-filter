@@ -14,6 +14,7 @@
   const {
     detectCountry,
     exemptionReason,
+    getAuthorHandle,
     getTweetData,
     isBlockedLocation,
     normalizeHandle,
@@ -21,12 +22,26 @@
     regionForCountry,
     resolveLocationToCountry
   } = XCF_DETECTION;
+  const {
+    homeTimelineLabel,
+    isFilteredHomeFeed,
+    isProfileTimeline,
+    profileRelationship,
+    profileRootFor
+  } = XCF_FEED;
+  // Translated Home timeline labels seen on x.com, reused to find the Home
+  // column on X Pro when X is displayed in another language.
+  const HOME_LABELS_KEY = "xcfHomeTimelineLabels";
+  const HOME_LABELS_MAX = 5;
 
   let settings = normalizeSettings(DEFAULTS);
+  let homeLabels = [];
   let accountLocations = null;
   let observer = null;
   let articleTimer = null;
+  let rescanTimer = null;
   const pendingArticles = new Set();
+  const pendingRescanHandles = new Set();
   const detectionState = new WeakMap();
 
   globalThis.XCF_DEBUG = Object.freeze({
@@ -40,6 +55,7 @@
       if (chrome.runtime && chrome.runtime.id) return false;
     } catch { /* extension context was invalidated */ }
     clearTimeout(articleTimer);
+    clearTimeout(rescanTimer);
     if (observer) observer.disconnect();
     if (accountLocations) accountLocations.stop();
     document.querySelectorAll(".xcf-hidden").forEach(cell => clearDetectionData(cell));
@@ -51,34 +67,29 @@
     detectionState.delete(cell);
   }
 
-  function isFilteredHomeFeed(article) {
-    if (typeof location === "undefined") return false;
-    const path = String(location.pathname || "");
-    if (!/^\/home\/?$/.test(path) && !/^\/i\/decks(?:\/|$)/.test(path)) return false;
-
-    const timeline = article.closest('[aria-label="Timeline: Your Home Timeline"]');
-    if (!timeline) return false;
-
-    // X keeps For You, Following, and topic feeds on the same /home route.
-    // Filter every selected Home feed except Following. X Pro may show several
-    // Home columns at once, so fail open if the column selection is ambiguous.
-    for (let root = timeline; root && root !== document.body; root = root.parentElement) {
-      if (typeof root.querySelectorAll !== "function") continue;
-      const selected = [...root.querySelectorAll('[role="tab"][aria-selected="true"]')];
-      if (selected.length === 1) {
-        return !/^following$/i.test(String(selected[0].textContent || "").trim());
-      }
-      if (selected.length > 1) return false;
-    }
-    return false;
+  function sanitizeHomeLabels(value) {
+    return Array.isArray(value)
+      ? value.filter(label => typeof label === "string" && label.length <= 200)
+        .slice(0, HOME_LABELS_MAX)
+      : [];
   }
 
-  function isProfileTimeline(article) {
-    const timeline = article.closest('[aria-label^="Timeline:"]');
-    const label = timeline && typeof timeline.getAttribute === "function"
-      ? timeline.getAttribute("aria-label") || ""
-      : "";
-    return /['’]s posts$/i.test(label);
+  function pageState() {
+    const root = document.documentElement;
+    return {
+      path: typeof location === "undefined" ? "" : String(location.pathname || ""),
+      uiLanguage: root && root.lang || "",
+      homeLabels,
+      // Profile columns are only possible while a profile header is shown.
+      hasProfileHeader: Boolean(document.querySelector('[data-testid="UserName"]'))
+    };
+  }
+
+  function learnHomeLabel(article, page) {
+    const label = homeTimelineLabel(article, page);
+    if (!label || homeLabels.includes(label)) return;
+    homeLabels = [label, ...homeLabels].slice(0, HOME_LABELS_MAX);
+    try { chrome.storage.local.set({ [HOME_LABELS_KEY]: homeLabels }); } catch { /* extension was reloaded */ }
   }
 
   function isNearViewport(article) {
@@ -88,13 +99,15 @@
     return rect.bottom >= -height * 0.5 && rect.top <= height * 1.5;
   }
 
-  function visibleProfileEvidence(article, handle) {
-    if (!handle || !isProfileTimeline(article) || typeof location === "undefined") return null;
-    const route = String(location.pathname || "").match(/^\/([A-Za-z0-9_]{1,15})(?:\/|$)/);
+  function visibleProfileEvidence(article, handle, page) {
+    if (!handle) return null;
+    const route = page.path.match(/^\/([A-Za-z0-9_]{1,15})(?:\/|$)/);
     const routeMatches = route && normalizeHandle(route[1]) === normalizeHandle(handle);
     const roots = [];
+    const profileRoot = profileRootFor(article);
+    if (profileRoot) roots.push(profileRoot);
     const primary = article.closest('[data-testid="primaryColumn"]');
-    if (primary) roots.push(primary);
+    if (primary && !roots.includes(primary)) roots.push(primary);
     for (let node = article.parentElement; node && node !== document.body; node = node.parentElement) {
       if (typeof node.querySelector === "function" &&
           node.querySelector('[data-testid="UserLocation"]') && !roots.includes(node)) {
@@ -110,18 +123,7 @@
         : "";
       const resolved = resolveLocationToCountry(profileLocation);
 
-      let following = null;
-      for (const button of root.querySelectorAll("button")) {
-        const label = String(button.getAttribute("aria-label") || "").trim();
-        if (new RegExp(`^Follow @${handle}$`, "i").test(label)) {
-          following = false;
-          break;
-        }
-        if (new RegExp(`^(?:Following|Unfollow) @${handle}$`, "i").test(label)) {
-          following = true;
-          break;
-        }
-      }
+      const following = profileRelationship(root, handle);
 
       // A matching relationship button safely binds a profile column on X Pro,
       // whose deck URL does not contain the opened profile's handle.
@@ -137,14 +139,49 @@
     return null;
   }
 
-  function applyToArticle(article) {
+  // Opened profiles are never filtered, but their visible location and
+  // Follow/Following state warm the cache for that author's Home-feed posts.
+  function rememberVisibleProfile(article, page) {
+    if (!accountLocations) return;
+    const handle = getAuthorHandle(article);
+    if (!handle) return;
+    const evidence = visibleProfileEvidence(article, handle, page);
+    if (evidence && accountLocations.rememberProfile(
+      handle,
+      evidence.profileLocation,
+      evidence.following
+    )) {
+      scheduleRescan([handle]);
+    }
+    // On X Pro a profile column sits beside Home columns, so look its
+    // authors up first.
+    if (/^\/i\/decks(?:\/|$)/.test(page.path)) {
+      const cached = accountLocations.get(handle);
+      if (!cached || cached.provisional) {
+        accountLocations.enqueue(handle, true);
+        accountLocations.pump();
+      }
+    }
+  }
+
+  function filteringActive() {
+    return settings.enabled && (settings.hidden.length > 0 || settings.hiddenRegions.length > 0);
+  }
+
+  function applyToArticle(article, scan) {
     const cell = article.closest('div[data-testid="cellInnerDiv"]') || article;
     clearDetectionData(cell);
-    if (!isFilteredHomeFeed(article)) return;
-    if (!settings.enabled || (settings.hidden.length === 0 && settings.hiddenRegions.length === 0)) return;
+    if (!filteringActive()) return;
+    if (!isFilteredHomeFeed(article, scan.page)) {
+      if (scan.page.hasProfileHeader && isProfileTimeline(article)) {
+        rememberVisibleProfile(article, scan.page);
+      }
+      return;
+    }
+    learnHomeLabel(article, scan.page);
 
     const data = getTweetData(article);
-    const viewerHandle = accountLocations && accountLocations.getViewerHandle();
+    const viewerHandle = scan.viewerHandle;
     const immediateExemption = exemptionReason(
       data.handle,
       false,
@@ -181,19 +218,9 @@
     const cached = data.handle && accountLocations
       ? accountLocations.get(data.handle)
       : null;
-    const profileEvidence = visibleProfileEvidence(article, data.handle);
-    if (profileEvidence && accountLocations) {
-      accountLocations.rememberProfile(
-        data.handle,
-        profileEvidence.profileLocation,
-        profileEvidence.following
-      );
-    }
-    const following = profileEvidence && typeof profileEvidence.following === "boolean"
-      ? profileEvidence.following
-      : cached && cached.following;
-    if (data.handle && !cached && accountLocations) {
-      const priority = isProfileTimeline(article) || isNearViewport(article);
+    const following = cached && cached.following;
+    if (data.handle && accountLocations && (!cached || cached.provisional)) {
+      const priority = isNearViewport(article);
       accountLocations.enqueue(data.handle, priority);
       if (priority) accountLocations.pump();
     }
@@ -237,11 +264,10 @@
       accountReason: cached && cached.accountCountry
         ? "X account based in: " + cached.basedIn
         : null,
-      locationCountry: cached && cached.profileCountry || profileEvidence && profileEvidence.country,
-      locationReason: cached && cached.profileCountry && cached.matchedPlace
-        ? "profile location: " + cached.matchedPlace
-        : profileEvidence && profileEvidence.matchedPlace
-          ? "visible profile location: " + profileEvidence.matchedPlace
+      locationCountry: cached && cached.profileCountry,
+      locationReason: cached && cached.matchedPlace
+        ? (cached.provisional ? "visible profile location: " : "profile location: ") +
+          cached.matchedPlace
         : "profile location"
     });
 
@@ -259,8 +285,33 @@
     }
   }
 
-  function scanAll() {
-    document.querySelectorAll('article[data-testid="tweet"]').forEach(applyToArticle);
+  function scanState() {
+    return {
+      page: pageState(),
+      viewerHandle: accountLocations ? accountLocations.getViewerHandle() : null
+    };
+  }
+
+  // Lookup results only affect their own authors' posts, so rescan just
+  // those unless the viewer or settings changed.
+  function scanAll(handles) {
+    const only = Array.isArray(handles) ? new Set(handles) : null;
+    if (only && only.size === 0) return;
+    const scan = scanState();
+    document.querySelectorAll('article[data-testid="tweet"]').forEach(article => {
+      if (!only || only.has(getAuthorHandle(article))) applyToArticle(article, scan);
+    });
+  }
+
+  function scheduleRescan(handles) {
+    handles.forEach(handle => pendingRescanHandles.add(handle));
+    if (rescanTimer) return;
+    rescanTimer = setTimeout(() => {
+      rescanTimer = null;
+      const next = [...pendingRescanHandles];
+      pendingRescanHandles.clear();
+      scanAll(next);
+    }, 0);
   }
 
   function scheduleArticle(article) {
@@ -270,8 +321,9 @@
       articleTimer = null;
       const articles = [...pendingArticles];
       pendingArticles.clear();
+      const scan = scanState();
       for (const item of articles) {
-        if (item.isConnected) applyToArticle(item);
+        if (item.isConnected) applyToArticle(item, scan);
       }
     }, 100);
   }
@@ -300,9 +352,15 @@
 
   chrome.storage.sync.get(DEFAULTS, value => {
     settings = normalizeSettings(value);
+    chrome.storage.local.get(HOME_LABELS_KEY, stored => {
+      homeLabels = sanitizeHomeLabels(stored && stored[HOME_LABELS_KEY]);
+      start();
+    });
+  });
+
+  function start() {
     accountLocations = XCF_ACCOUNT_LOCATION.create({
-      shouldLookup: () => settings.enabled &&
-        (settings.hidden.length > 0 || settings.hiddenRegions.length > 0),
+      shouldLookup: filteringActive,
       onUpdate: scanAll
     });
     accountLocations.start();
@@ -314,11 +372,17 @@
       attributes: true,
       attributeFilter: ["aria-selected"]
     });
-  });
+  }
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.xcfLocCache && accountLocations) {
-      accountLocations.mergeStored(changes.xcfLocCache.newValue);
+    if (area === "local") {
+      if (changes.xcfLocCache && accountLocations) {
+        accountLocations.mergeStored(changes.xcfLocCache.newValue);
+      }
+      if (changes[HOME_LABELS_KEY]) {
+        homeLabels = sanitizeHomeLabels(changes[HOME_LABELS_KEY].newValue);
+        if (accountLocations) scanAll();
+      }
       return;
     }
     if (area !== "sync") return;

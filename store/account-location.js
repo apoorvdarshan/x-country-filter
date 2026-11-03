@@ -38,6 +38,9 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
   const CACHE_MAX = 5000;
   const PUMP_INTERVAL = 2500;
   const LOOKUPS_PER_PUMP = 2;
+  // After this many failed lookups (rate limits excluded), an author is cached
+  // as empty so the short negative TTL schedules the next attempt instead.
+  const MAX_LOOKUP_ATTEMPTS = 3;
 
   function create({ shouldLookup, onUpdate }) {
     let cache = new Map();
@@ -45,6 +48,8 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     const queued = new Set();
     let pumping = false;
     let cooldownUntil = 0;
+    let rateLimitedAt = 0;
+    const failures = new Map();
     let legacyEndpointDead = false;
     let preferredAboutQueryId = null;
     let preferredProfileQueryId = null;
@@ -169,6 +174,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         cache.clear();
         queue = [];
         queued.clear();
+        failures.clear();
         savedLoaded = false;
       }
       viewerHandle = normalized;
@@ -231,7 +237,10 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
 
     function enqueue(handle, priority = false) {
       const normalized = String(handle || "").toLowerCase();
-      if (!normalized || cache.has(normalized)) return;
+      const existing = cache.get(normalized);
+      // Visible profile evidence is provisional: keep looking up X's stronger
+      // account metadata for that author.
+      if (!normalized || (existing && !existing.provisional)) return;
       if (queued.has(normalized)) {
         if (priority) {
           queue = queue.filter(item => item !== normalized);
@@ -244,7 +253,12 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       priority ? queue.unshift(normalized) : queue.push(normalized);
     }
 
-    function setCached(handle, { basedIn = "", profileLocation = "", following = null }) {
+    function setCached(handle, {
+      basedIn = "",
+      profileLocation = "",
+      following = null,
+      provisional = false
+    }) {
       const account = resolveAccountBasedIn(basedIn);
       const profile = account.country
         ? { country: null, matchedPlace: null }
@@ -262,6 +276,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
         matchedPlace: profile.matchedPlace,
         following: typeof following === "boolean" ? following : null,
         source,
+        provisional,
         ts: Date.now()
       });
       queued.delete(handle);
@@ -282,7 +297,8 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
       setCached(normalized, {
         basedIn: existing && existing.basedIn || "",
         profileLocation: profileLocation || existing && existing.profileLocation || "",
-        following: nextFollowing
+        following: nextFollowing,
+        provisional: !existing || Boolean(existing.provisional)
       });
       persistCache();
       return true;
@@ -291,20 +307,22 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     function mergeStored(payload) {
       if (!viewerResolved || !viewerHandle || !payload || payload.version !== CACHE_VERSION ||
           payload.viewer !== viewerHandle) return false;
-      let changed = false;
+      const changed = [];
       const now = Date.now();
       for (const [handle, value] of Object.entries(payload.entries || {})) {
         const current = cache.get(handle);
         if (cacheFresh(value, now) &&
             (!current || value.ts > current.ts)) {
           cache.set(handle, value);
-          queued.delete(handle);
-          queue = queue.filter(item => item !== handle);
-          changed = true;
+          if (!value.provisional) {
+            queued.delete(handle);
+            queue = queue.filter(item => item !== handle);
+          }
+          changed.push(handle);
         }
       }
-      if (changed) onUpdate();
-      return changed;
+      if (changed.length) onUpdate(changed);
+      return changed.length > 0;
     }
 
     function persistCache() {
@@ -326,6 +344,7 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
     }
 
     function setCooldown(response) {
+      if (response.status === 429) rateLimitedAt = Date.now();
       cooldownUntil = Date.now() + (response.status === 429 ? 120000 : 30000);
     }
 
@@ -534,18 +553,40 @@ globalThis.XCF_ACCOUNT_LOCATION = (() => {
 
       pumping = true;
       const handles = queue.splice(0, LOOKUPS_PER_PUMP);
+      const batchStartedAt = Date.now();
       try {
         const results = await Promise.all(handles.map(handle =>
           processHandle(handle, csrf).catch(() => false)
         ));
-        let changed = false;
+        const rateLimited = rateLimitedAt >= batchStartedAt;
+        const changed = [];
         results.forEach((success, index) => {
-          if (success) changed = true;
-          else queue.push(handles[index]);
+          const handle = handles[index];
+          if (success) {
+            failures.delete(handle);
+            changed.push(handle);
+            return;
+          }
+          const attempts = (failures.get(handle) || 0) + (rateLimited ? 0 : 1);
+          if (attempts < MAX_LOOKUP_ATTEMPTS) {
+            failures.set(handle, attempts);
+            queue.push(handle);
+            return;
+          }
+          failures.delete(handle);
+          const existing = cache.get(handle);
+          if (existing && existing.provisional) {
+            // Keep visible profile evidence; just stop retrying the lookup.
+            cache.set(handle, { ...existing, provisional: false });
+            queued.delete(handle);
+          } else {
+            setCached(handle, {});
+          }
+          changed.push(handle);
         });
-        if (changed) {
+        if (changed.length) {
           persistCache();
-          onUpdate();
+          onUpdate(changed);
         }
       } finally {
         pumping = false;

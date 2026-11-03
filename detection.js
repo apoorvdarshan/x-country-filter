@@ -26,9 +26,15 @@ globalThis.XCF_DETECTION = (() => {
   const countryRegions = new Map();
   const REGION_CODES = new Set(Object.keys(REGION_DB));
 
+  // Each matcher keeps a lowercase copy so a cheap substring check can skip
+  // the regex for the many terms that cannot appear in the text.
+  function matcher(term) {
+    return [term, wordRegex(term), term.toLowerCase()];
+  }
+
   for (const [country, data] of Object.entries(COUNTRY_DB)) {
-    keywordRegexes.set(country, data.keywords.map(keyword => [keyword, wordRegex(keyword)]));
-    placeRegexes.set(country, (data.places || []).map(place => [place, wordRegex(place)]));
+    keywordRegexes.set(country, data.keywords.map(matcher));
+    placeRegexes.set(country, (data.places || []).map(matcher));
     for (const handle of data.handles) handleCountries.set(handle, country);
     for (const language of data.langs) {
       const owners = languageCountries.get(language) || [];
@@ -127,7 +133,7 @@ globalThis.XCF_DETECTION = (() => {
 
   // Resolve the author from the displayed identity before considering nested
   // status links from reply parents or quoted posts.
-  function getTweetData(article) {
+  function getAuthorHandle(article) {
     let handle = null;
     const userName = article.querySelector('div[data-testid="User-Name"]');
     if (userName) {
@@ -146,7 +152,11 @@ globalThis.XCF_DETECTION = (() => {
         if (handle) break;
       }
     }
+    return handle;
+  }
 
+  function getTweetData(article) {
+    const handle = getAuthorHandle(article);
     const textElement = article.querySelector('div[data-testid="tweetText"]');
     const text = textElement ? textElement.textContent || "" : "";
     return {
@@ -168,9 +178,11 @@ globalThis.XCF_DETECTION = (() => {
 
     let bestCountry = null;
     let bestPlace = null;
+    const lowerLocation = location.toLowerCase();
     for (const [country, places] of placeRegexes) {
-      for (const [place, regex] of places) {
-        if ((!bestPlace || place.length > bestPlace.length) && regex.test(location)) {
+      for (const [place, regex, lowerPlace] of places) {
+        if ((!bestPlace || place.length > bestPlace.length) &&
+            lowerLocation.includes(lowerPlace) && regex.test(location)) {
           bestCountry = country;
           bestPlace = place;
         }
@@ -259,8 +271,11 @@ globalThis.XCF_DETECTION = (() => {
     }
 
     if (text) {
+      const lowerText = text.toLowerCase();
       for (const [country, keywords] of keywordRegexes) {
-        const matches = keywords.filter(([, regex]) => regex.test(text)).map(([keyword]) => keyword);
+        const matches = keywords
+          .filter(([, regex, lowerKeyword]) => lowerText.includes(lowerKeyword) && regex.test(text))
+          .map(([keyword]) => keyword);
         if (matches.length) {
           const points = Math.min(65, 35 + (matches.length - 1) * 15);
           addEvidence(scores, country, points, `post keywords: ${matches.join(", ")}`);
@@ -344,6 +359,7 @@ globalThis.XCF_DETECTION = (() => {
     detectCountry,
     extractMentionedHandles,
     extractAccountBasedIn,
+    getAuthorHandle,
     getTweetData,
     handleFromHref,
     isBlockedLocation,

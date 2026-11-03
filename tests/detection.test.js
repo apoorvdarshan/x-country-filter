@@ -307,6 +307,11 @@ assert.equal(
   fs.readFileSync("store/content.js", "utf8"),
   "developer and store builds must share identical content behavior"
 );
+assert.equal(
+  fs.readFileSync("feed.js", "utf8"),
+  fs.readFileSync("store/feed.js", "utf8"),
+  "developer and store builds must share identical feed rules"
+);
 for (const file of ["popup.html", "popup.css", "popup.js"]) {
   assert.equal(
     fs.readFileSync(file, "utf8"),
@@ -324,11 +329,46 @@ for (const url of [
 }
 for (const file of ["manifest.json", "store/manifest.json"]) {
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-  assert.equal(manifest.version, "1.6.9");
+  assert.equal(manifest.version, "1.7.0");
   assert.equal(manifest.content_scripts[0].js[0], "country-catalog.js");
+  const scripts = manifest.content_scripts[0].js;
+  assert.ok(scripts.indexOf("feed.js") < scripts.indexOf("content.js"), "content.js depends on feed.js");
+}
+const storeListing = fs.readFileSync("STORE_LISTING.md", "utf8");
+const storeManifest = JSON.parse(fs.readFileSync("store/manifest.json", "utf8"));
+for (const file of [
+  ...storeManifest.content_scripts[0].js,
+  ...storeManifest.content_scripts[0].css,
+  "popup.html", "popup.js", "popup.css"
+]) {
+  assert.ok(storeListing.includes(" " + file), `the store packaging command must include ${file}`);
+}
+assert.ok(
+  storeListing.includes(`country-filter-for-x-${storeManifest.version}.zip`),
+  "the store packaging command must name the current version"
+);
+
+// The substring prefilter must never reject a term the word regex accepts.
+for (const [country, data] of Object.entries(countryData.countries)) {
+  for (const term of [...data.keywords, ...(data.places || [])]) {
+    for (const sample of [term, term.toUpperCase(), term.toLowerCase()]) {
+      if (!new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "iu").test(sample)) continue;
+      if ((data.places || []).includes(term)) {
+        assert.ok(detection.resolveLocationToCountry(`in ${sample}`).matchedPlace,
+          `${country} place "${term}" must match "${sample}"`);
+      }
+      if (data.keywords.includes(term)) {
+        assert.ok(
+          detection.detectCountry({ text: `about ${sample}` }).candidates
+            .some(candidate => candidate.country === country),
+          `${country} keyword "${term}" must match "${sample}"`
+        );
+      }
+    }
+  }
 }
 
-function smokeContentScript(catalogFile, countryFile, detectionFile, accountFile, contentFile) {
+function smokeContentScript(directory) {
   const context = {
     URL,
     clearInterval() {},
@@ -336,6 +376,7 @@ function smokeContentScript(catalogFile, countryFile, detectionFile, accountFile
     document: {
       body: {},
       cookie: "",
+      querySelector: () => null,
       querySelectorAll: () => []
     },
     setInterval: () => 1,
@@ -361,26 +402,43 @@ function smokeContentScript(catalogFile, countryFile, detectionFile, accountFile
   };
   context.globalThis = context;
   vm.createContext(context);
-  for (const file of [catalogFile, countryFile, detectionFile, accountFile, contentFile]) {
+  // Load scripts exactly as the manifest injects them.
+  const manifest = JSON.parse(fs.readFileSync(directory + "manifest.json", "utf8"));
+  for (const script of manifest.content_scripts[0].js) {
+    const file = directory + script;
     vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
   }
-  assert.equal(typeof context.XCF_DEBUG.get, "function", `${contentFile} must initialize`);
+  assert.equal(typeof context.XCF_DEBUG.get, "function", `${directory}content.js must initialize`);
 }
 
-smokeContentScript(
-  "country-catalog.js",
-  "countries.js",
-  "detection.js",
-  "account-location.js",
-  "content.js"
-);
-smokeContentScript(
-  "store/country-catalog.js",
-  "store/countries.js",
-  "store/detection.js",
-  "store/account-location.js",
-  "store/content.js"
-);
+smokeContentScript("");
+smokeContentScript("store/");
+
+const { documentFor, el } = require("./fake-dom");
+
+const HOME_TABS = {
+  en: ["For you", "Following", "Software", "Tech"],
+  es: ["Para ti", "Siguiendo", "Software", "Tecnología"]
+};
+const HOME_LABELS = {
+  en: "Timeline: Your Home Timeline",
+  es: "Cronología: Tu cronología de inicio"
+};
+
+function timelineSection(label, cell) {
+  return el("section", { role: "region" }, [el("div", { "aria-label": label }, [cell])]);
+}
+
+function homeTabs(language, surface) {
+  const selected = /following/i.test(surface) ? 1
+    : surface === "software" ? 2
+      : surface === "tech" ? 3 : 0;
+  return el("div", { role: "tablist" }, HOME_TABS[language].map((name, index) =>
+    el("div", { role: "presentation" }, [
+      el("div", { role: "tab", "aria-selected": String(index === selected) }, [], name)
+    ])
+  ));
+}
 
 function runContentScenario({
   settings,
@@ -388,119 +446,89 @@ function runContentScenario({
   expectedHidden,
   expectedReason = null,
   expectedPending = false,
+  expectedProfileCountry,
+  expectedLearnedLabel,
   viewerHandle = null,
   mentionedHandle = null,
   surface = "forYou",
+  language = "en",
+  learnedLabels,
   profile = null
 }) {
-  const classes = new Set();
-  const body = {};
-  const cell = {
-    classList: {
-      add: value => classes.add(value),
-      remove: value => classes.delete(value)
-    }
-  };
-  const timeline = {
-    getAttribute: name => name === "aria-label" ? "Timeline: Test Author’s posts" : null
-  };
-  const selectedTab = {
-    textContent: /following/i.test(surface)
-      ? "Following"
-      : surface === "software" ? "Software"
-        : surface === "tech" ? "Tech"
-          : "For you"
-  };
-  const homeColumn = {
-    parentElement: body,
-    querySelectorAll: selector => selector.includes('role="tab"') ? [selectedTab] : []
-  };
-  const homeTimeline = {
-    parentElement: homeColumn,
-    querySelectorAll: () => []
-  };
-  const primaryColumn = {
-    querySelector: selector => selector.includes("UserLocation") && profile
-      ? { textContent: profile.location }
-      : null,
-    querySelectorAll: selector => selector === "button" && profile &&
-      typeof profile.following === "boolean"
-      ? [{
-          getAttribute: name => name === "aria-label"
-            ? `${profile.following ? "Following" : "Follow"} @test_author`
-            : null
-        }]
-      : []
-  };
-  const article = {
-    isConnected: true,
-    closest: selector => {
-      if (selector.includes("Timeline: Your Home Timeline")) {
-        return !profile && /^(?:forYou|following|software|tech|proForYou|proFollowing)$/.test(surface)
-          ? homeTimeline
-          : null;
-      }
-      if (selector.includes('aria-label^="Timeline:"')) return profile ? timeline : null;
-      if (selector.includes("primaryColumn")) return profile ? primaryColumn : null;
-      if (selector.includes("cellInnerDiv")) return cell;
-      return null;
-    },
-    querySelectorAll: selector => {
-      if (selector.includes("/status/")) {
-        return [{ getAttribute: () => "/test_author/status/123" }];
-      }
-      if (selector === 'a[href]' && mentionedHandle) {
-        return [{
-          textContent: `@${mentionedHandle}`,
-          getAttribute: name => name === "href" ? `/${mentionedHandle}` : null
-        }];
-      }
-      return [];
-    },
-    querySelector: selector => selector.includes("tweetText")
-      ? { textContent: "India Mumbai Delhi", getAttribute: () => "en" }
-      : null
-  };
+  const article = el("article", { "data-testid": "tweet" }, [
+    el("a", { href: "/test_author/status/123" }),
+    ...(mentionedHandle ? [el("a", { href: `/${mentionedHandle}` }, [], `@${mentionedHandle}`)] : []),
+    el("div", { "data-testid": "tweetText", lang: "en" }, [], "India Mumbai Delhi")
+  ]);
+  const cell = el("div", { "data-testid": "cellInnerDiv" }, [article]);
+  const pro = /^pro/.test(surface) || Boolean(profile && /^\/i\/decks/.test(profile.path || ""));
+  let column;
+  if (profile) {
+    column = el("div", pro ? {} : { "data-testid": "primaryColumn" }, [
+      el("div", { "data-testid": "UserName" }),
+      el("div", { "data-testid": "UserLocation" }, [], profile.location),
+      ...(typeof profile.following === "boolean"
+        ? [el("button", {
+            ...(profile.testId === false ? {} : {
+              "data-testid": profile.following ? "42-unfollow" : "42-follow"
+            }),
+            "aria-label": `${profile.following ? "Following" : "Follow"} @test_author`
+          })]
+        : []),
+      timelineSection("Timeline: Test Author’s posts", cell)
+    ]);
+  } else if (surface === "notifications" || surface === "reply") {
+    column = el("div", { "data-testid": "primaryColumn" }, [
+      timelineSection(surface === "reply" ? "Timeline: Conversation" : "Timeline: Notifications", cell)
+    ]);
+  } else {
+    column = el("div", pro ? {} : { "data-testid": "primaryColumn" }, [
+      homeTabs(language, surface),
+      timelineSection(pro && learnedLabels ? learnedLabels[0] : HOME_LABELS[language], cell)
+    ]);
+  }
+  const body = el("body", {}, [
+    ...(viewerHandle
+      ? [el("button", { "data-testid": "SideNav_AccountSwitcher_Button" }, [], "Viewer@" + viewerHandle)]
+      : []),
+    el("div", {}, [column])
+  ]);
+
+  const stored = [];
   const context = {
     URL,
     URLSearchParams,
     clearInterval() {},
     clearTimeout() {},
-    document: {
-      body,
-      cookie: "",
-      querySelector: selector => primaryColumn.querySelector(selector),
-      querySelectorAll: selector => {
-        if (selector.includes('article[data-testid="tweet"]')) return [article];
-        if (viewerHandle && selector.includes("SideNav_AccountSwitcher_Button")) {
-          return [{ textContent: "Viewer@" + viewerHandle, getAttribute: () => null }];
-        }
-        return [];
-      }
-    },
+    document: documentFor(body, { lang: language }),
     location: {
       pathname: profile
         ? profile.path || "/test_author"
-        : /^pro/.test(surface) ? "/i/decks/123"
+        : pro ? "/i/decks/123"
           : surface === "notifications" ? "/notifications"
             : surface === "reply" ? "/blocked_author/status/123"
               : "/home"
     },
     setInterval: () => 1,
-    setTimeout: () => 1,
+    setTimeout: callback => {
+      callback();
+      return 1;
+    },
     MutationObserver: class { observe() {} disconnect() {} },
     chrome: {
       runtime: { id: "test-extension" },
       storage: {
         local: {
-          get: (_key, callback) => callback(cached ? {
+          get: (key, callback) => callback(key === "xcfLocCache" && cached ? {
             xcfLocCache: {
               version: 10,
               viewer: viewerHandle,
               entries: { test_author: { ...cached, ts: Date.now() } }
             }
-          } : {}),
-          set() {}
+          } : key === "xcfHomeTimelineLabels" && learnedLabels
+            ? { xcfHomeTimelineLabels: learnedLabels }
+            : {}),
+          set: value => stored.push(value)
         },
         sync: {
           get: (defaults, callback) => callback({ ...defaults, ...settings }),
@@ -512,16 +540,26 @@ function runContentScenario({
   };
   context.globalThis = context;
   vm.createContext(context);
-  for (const file of [
-    "country-catalog.js", "countries.js", "detection.js", "account-location.js", "content.js"
-  ]) {
+  const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+  for (const file of manifest.content_scripts[0].js) {
     vm.runInContext(fs.readFileSync(file, "utf8"), context, { filename: file });
   }
 
-  assert.equal(classes.has("xcf-hidden"), expectedHidden);
+  assert.equal(cell.classList.contains("xcf-hidden"), expectedHidden);
   const state = context.XCF_DEBUG.get(cell);
   assert.equal(state && state.exemptionReason || null, expectedReason);
   assert.equal(Boolean(state && state.pendingRelationship), expectedPending);
+  if (expectedProfileCountry !== undefined) {
+    const saved = stored.map(value => value.xcfLocCache).filter(Boolean).pop();
+    const entry = saved && saved.entries.test_author;
+    assert.equal(entry ? entry.profileCountry : null, expectedProfileCountry,
+      "visible profile evidence must be remembered for later Home-feed posts");
+    if (entry) assert.equal(entry.provisional, true);
+  }
+  if (expectedLearnedLabel !== undefined) {
+    const saved = stored.map(value => value.xcfHomeTimelineLabels).filter(Boolean).pop();
+    assert.deepEqual(saved ? [...saved] : null, expectedLearnedLabel);
+  }
 }
 
 runContentScenario({
@@ -720,6 +758,57 @@ runContentScenario({
   profile: { location: "India", following: true },
   expectedHidden: false,
   expectedReason: null
+});
+
+const INDIA_NOT_FOLLOWED = {
+  basedIn: "India",
+  accountCountry: "IN",
+  accountRegion: "SOUTH_ASIA",
+  profileCountry: null,
+  cc: "IN",
+  following: false
+};
+// A translated x.com Home feed is filtered, its Following tab is not, and the
+// translated Home label is learned for X Pro.
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  language: "es",
+  cached: INDIA_NOT_FOLLOWED,
+  expectedHidden: true,
+  expectedLearnedLabel: [HOME_LABELS.es]
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  language: "es",
+  surface: "following",
+  cached: INDIA_NOT_FOLLOWED,
+  expectedHidden: false
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  language: "es",
+  surface: "proForYou",
+  learnedLabels: [HOME_LABELS.es],
+  cached: INDIA_NOT_FOLLOWED,
+  expectedHidden: true
+});
+// Opened profiles stay unfiltered but remember their visible evidence.
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  profile: { location: "Bengaluru, India", following: false },
+  expectedHidden: false,
+  expectedProfileCountry: "IN"
+});
+runContentScenario({
+  settings: { hidden: ["IN"] },
+  viewerHandle: "viewer_account",
+  profile: { location: "Bengaluru, India", following: true, testId: false, path: "/i/decks/123" },
+  expectedHidden: false,
+  expectedProfileCountry: "IN"
 });
 
 console.log("Detection tests passed");

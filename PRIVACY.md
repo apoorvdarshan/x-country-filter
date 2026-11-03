@@ -1,6 +1,6 @@
 # Privacy Policy — Country Filter for X
 
-**Last updated: August 21, 2026**
+**Last updated: November 3, 2026**
 
 Country Filter for X ("the extension") is a browser extension that hides posts
 in X/Twitter's recommended Home feeds on x.com, including X Pro at pro.x.com,
@@ -36,8 +36,13 @@ server. It does not sell or share data with outside services.**
   history and only runs on x.com, pro.x.com, and twitter.com.
 - To remain compatible when X rotates its private operation identifiers, the
   extension may read the URLs of resources already loaded by the current X tab
-  and reuse an observed `AboutAccountQuery` identifier. This stays in memory
-  and is not transmitted anywhere except back to X in the location request.
+  and reuse observed `AboutAccountQuery` and `UserByScreenName` identifiers.
+  These stay in memory and are not transmitted anywhere except back to X in
+  the account-location and profile requests.
+- So it can recognize the Home column on X Pro when X is shown in another
+  language, the extension stores the translated Home timeline label that X
+  displays (for example "Cronología: Tu cronología de inicio") in
+  `chrome.storage.local`. It contains no account or browsing information.
 
 ## Contact
 

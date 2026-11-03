@@ -11,14 +11,14 @@ Live listing: https://chromewebstore.google.com/detail/country-filter-for-x-twit
 
 ## Build → Package
 
-Upload: `dist/country-filter-for-x-1.6.7.zip`
+Upload: `dist/country-filter-for-x-1.7.0.zip`
 
 Rebuild after any change under `store/`:
 
 ```sh
 mkdir -p dist
-cd store && zip -qr ../dist/country-filter-for-x-1.6.7.zip \
-  manifest.json country-catalog.js countries.js detection.js account-location.js content.js content.css \
+cd store && zip -qr ../dist/country-filter-for-x-1.7.0.zip \
+  manifest.json country-catalog.js countries.js detection.js feed.js account-location.js content.js content.css \
   popup.html popup.js popup.css icons -x '.*'
 ```
 
@@ -144,7 +144,7 @@ Hides posts in recommended Home feeds on x.com, including X Pro at pro.x.com, fr
 ### Permission justification — `storage`
 
 ```
-Saves the user's settings: the on/off state, countries or regions chosen to hide, username exceptions, and the followed-account protection preference. The signed-in username is kept only in local extension storage to scope cached results. Synced settings follow the user's Chrome profile.
+Saves the user's settings: the on/off state, countries or regions chosen to hide, username exceptions, and the followed-account protection preference. The signed-in username is kept only in local extension storage to scope cached results, alongside X's translated Home timeline label so X Pro columns are recognized in any language. Synced settings follow the user's Chrome profile.
 ```
 
 ### Permission justification — host permission (x.com, pro.x.com, twitter.com content scripts)

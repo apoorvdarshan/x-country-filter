@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Country Filter for X (Twitter)",
-  "version": "1.6.9",
+  "version": "1.7.0",
   "description": "Hide posts from selected countries or regions in X's recommended Home feeds.",
   "homepage_url": "https://apoorvdarshan.com",
   "permissions": ["storage"],
   "content_scripts": [
     {
       "matches": ["https://x.com/*", "https://pro.x.com/*", "https://twitter.com/*"],
-      "js": ["country-catalog.js", "countries.js", "detection.js", "account-location.js", "content.js"],
+      "js": ["country-catalog.js", "countries.js", "detection.js", "feed.js", "account-location.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

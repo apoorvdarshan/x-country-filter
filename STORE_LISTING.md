@@ -82,6 +82,7 @@ FEATURES
 • Username exceptions override every country and region filter
 • Accounts you follow remain visible automatically
 • Works in X and X Pro's For You and selected topic feeds
+• Works in every X display language
 • Following, notifications, conversations, profiles, and search stay untouched
 • Confidence scoring reduces false positives
 • Live counts for selected regions and countries
